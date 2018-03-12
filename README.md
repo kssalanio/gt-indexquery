@@ -1,8 +1,7 @@
-GeoTrellis SBT Template
+GeoTrellis Index-Query
 =======================
 
-This is a bare-bones project template that can be used to begin any new
-application that uses GeoTrellis.
+Geotrellis application for querying and filtering using Feature Geometries and Attributes
 
 An `sbt` bootstrapping script is also supplied, so you don't even need to
 have `sbt` installed on your system.
@@ -10,7 +9,7 @@ have `sbt` installed on your system.
 To fetch this repo:
 
 ```console
-git clone https://github.com/geotrellis/geotrellis-sbt-template.git
+git clone https://github.com/kssalanio/gt-indexquerygt-indexquery.git
 ```
 
 To pull dependencies and run tests:
