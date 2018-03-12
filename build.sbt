@@ -1,15 +1,26 @@
 // Rename this as you see fit
-name := "geotrellis-sbt-template"
+name := "index-query"
 
-version := "0.2.0"
+version := "0.0.1"
 
 scalaVersion := "2.11.12"
+//scalaVersion := "2.12.0"
+
 
 organization := "com.azavea"
 
 licenses := Seq("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0.html"))
 
+logLevel := Level.Error
+
+//fork := true
+//fork := false
+fork in run := true
+
+connectInput in run := true
+
 scalacOptions ++= Seq(
+  "-nobootcp",
   "-deprecation",
   "-unchecked",
   "-Yinline-warnings",
@@ -23,15 +34,25 @@ publishMavenStyle := true
 publishArtifact in Test := false
 pomIncludeRepository := { _ => false }
 
+
 resolvers ++= Seq(
   "locationtech-releases" at "https://repo.locationtech.org/content/groups/releases",
-  "locationtech-snapshots" at "https://repo.locationtech.org/content/groups/snapshots"
+  "locationtech-snapshots" at "https://repo.locationtech.org/content/groups/snapshots",
+  "Boundless Repository" at "http://repo.boundlessgeo.com/main/",
+  "OSGeo Repository" at "http://download.osgeo.org/webdav/geotools/"
 )
 
 libraryDependencies ++= Seq(
   "org.locationtech.geotrellis" %% "geotrellis-spark" % "1.2.0-RC2",
-  "org.apache.spark"      %% "spark-core"       % "2.2.0" % Provided,
-  "org.scalatest"         %%  "scalatest"       % "2.2.0" % Test
+  "org.locationtech.geotrellis" %% "geotrellis-proj4" % "1.2.1",
+  "org.locationtech.geotrellis" %% "geotrellis-geotools" % "1.2.1",
+  "org.geotools" % "gt-shapefile" % "17.4",
+  "org.apache.spark"      %%  "spark-core"      % "2.2.0",
+  "org.scalatest"         %%  "scalatest"       % "2.2.0",
+  "com.lihaoyi" %% "pprint" % "0.4.3",
+  //  "org.gdal" % "gdal" % "1.11.2"
+  "org.gdal" % "gdal" % "2.1.0"
+//  "com.azavea.geotrellis" %% "geotrellis-gdal" % "0.10.0-M1"
 )
 
 // When creating fat jar, remote some files with
