@@ -6,7 +6,6 @@ version := "0.0.1"
 scalaVersion := "2.11.12"
 //scalaVersion := "2.12.0"
 
-
 organization := "com.azavea"
 
 licenses := Seq("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0.html"))
@@ -51,6 +50,7 @@ libraryDependencies ++= Seq(
   "org.scalatest"         %%  "scalatest"       % "2.2.0",
   "com.lihaoyi" %% "pprint" % "0.4.3",
   //  "org.gdal" % "gdal" % "1.11.2"
+  "com.github.tototoshi" %% "scala-csv" % "1.3.5",
   "org.gdal" % "gdal" % "2.1.0"
 //  "com.azavea.geotrellis" %% "geotrellis-gdal" % "0.10.0-M1"
 )
