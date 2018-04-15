@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package demo
+package thesis
 
 import geotrellis.vector._
 import geotrellis.proj4.CRS

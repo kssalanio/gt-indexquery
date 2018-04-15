@@ -1,4 +1,4 @@
-package demo
+package thesis
 
 /***
   * Copied from geotrellis 2.0

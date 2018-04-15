@@ -1,0 +1,277 @@
+package thesis
+
+import java.io._
+
+import com.github.tototoshi.csv.{CSVReader, CSVWriter}
+import geotrellis.raster._
+import geotrellis.raster.io.geotiff._
+import geotrellis.spark._
+import geotrellis.spark.io.kryo._
+import geotrellis.util._
+import org.apache.log4j.Logger
+import org.apache.spark._
+import org.apache.spark.rdd._
+import org.apache.spark.serializer.KryoSerializer
+
+import scala.io.StdIn
+import thesis.Refactored._
+//import sext._
+
+
+object Main{
+  //val logger = Logger.getLogger(Main.getClass)
+
+  def bootSentence = "\n\n>>> INITIALIZE <<<\n\n"
+  def helloSentence  = "Hello GeoTrellis"
+
+  val test_gtif: String = "/home/spark/datasets/SAR/geonode_sar_guimaras.tif"
+  val catalog_dirpath: String = "/home/spark/datasets/SAR"
+  var output_path : String = "/home/spark/datasets/output/tiled"
+  //val test_gtif: String = "/shared/DATA/datasets/SAR/geonode_sar_guimaras.tif"
+  //val catalog_dirpath: String = "/shared/DATA/datasets/SAR"
+
+  def log(msg: String){
+    println("> "+msg)
+  }
+
+  def createSparkContext(): Unit = {
+    val conf = new org.apache.spark.SparkConf()
+    conf.setMaster("local[*]")
+    implicit val sc = geotrellis.spark.util.SparkUtils.createSparkContext("Test console", conf)
+  }
+
+  def createAllSparkConf(): SparkConf = {
+    /**
+      * # -- MEMORY ALLOCATION -- #
+        spark.master                   yarn
+        spark.driver.memory            512m
+        spark.yarn.am.memory           512m
+        spark.executor.memory          512m
+
+
+        # -- MONITORING -- #
+        spark.eventLog.enabled            true
+        spark.eventLog.dir                hdfs://sh-master:9000/spark-logs
+        spark.history.provider            org.apache.spark.deploy.history.FsHistoryProvider
+        spark.history.fs.logDirectory     hdfs://sh-master:9000/spark-logs
+        spark.history.fs.update.interval  3s
+        spark.history.ui.port             18080
+        spark.ui.enabled                  true
+
+      */
+    new SparkConf()
+      .setMaster("yarn")
+      .setAppName("IndexQuery")
+      .set("spark.serializer",        classOf[KryoSerializer].getName)
+      .set("spark.kryo.registrator",  classOf[KryoRegistrator].getName)
+      .set("spark.driver.memory",     "512m")
+      .set("spark.yarn.am.memory",    "512m")
+      .set("spark.executor.memory",   "512m")
+      .set("spark.eventLog.enabled",            "true")
+      .set("spark.eventLog.dir",                "hdfs://sh-master:9000/spark-logs")
+      .set("spark.history.provider",            "org.apache.spark.deploy.history.FsHistoryProvider")
+      .set("spark.history.fs.logDirectory",     "hdfs://sh-master:9000/spark-logs")
+      .set("spark.history.fs.update.interval",  "3s")
+      .set("spark.history.ui.port",             "18080")
+      .set("spark.ui.enabled",                  "true")
+
+    //.set("spark.default.parallelism", "2")
+    //.set("spark.akka.frameSize", "512")
+    //.set("spark.kryoserializer.buffer.max.mb", "800")
+  }
+
+  def createSparkConf(): SparkConf = {
+    new SparkConf()
+      .setMaster("local")
+      .setAppName("IndexQuery")
+      //.set("spark.default.parallelism", "2")
+      .set("spark.serializer", classOf[KryoSerializer].getName)
+      .set("spark.kryo.registrator", classOf[KryoRegistrator].getName)
+      //.set("spark.akka.frameSize", "512")
+      .set("spark.kryoserializer.buffer.max.mb", "800")
+  }
+
+  def main(args: Array[String]): Unit = {
+    //Initialize
+    println(System.getProperty("java.library.path"))
+    unsafeAddDir("/usr/lib/jni/")
+    println(System.getProperty("java.library.path"))
+    org.gdal.gdal.gdal.AllRegister()
+    println(bootSentence)
+
+    if (args.length == 0) {
+      println("Need CSV argument")
+      throw new Exception("Insufficient args!")
+    }
+
+    val conf = createSparkConf()
+//      new SparkConf()
+//        .setMaster("local")
+//        .setAppName("IndexQuery")
+//        //.set("spark.default.parallelism", "2")
+//        .set("spark.serializer", classOf[KryoSerializer].getName)
+//        .set("spark.kryo.registrator", classOf[KryoRegistrator].getName)
+//        //.set("spark.akka.frameSize", "512")
+//        //.set("spark.kryoserializer.buffer.max.mb", "800")
+
+
+    System.setProperty("spark.ui.enabled", "true")
+    System.setProperty("spark.ui.port", "4040")
+
+    // Init spark context
+    implicit val sc = new SparkContext(conf)
+
+    try {
+      run(args(0))(sc)
+      // Pause to wait to close the spark context,
+      // so that you can check out the UI at http://localhost:4040
+      println("Hit enter to exit.")
+      StdIn.readLine()
+    } finally {
+      sc.stop()
+    }
+  }
+
+  def readTestCSV(csv_filepath : String) : List[Map[String,String]] = {
+    val reader = CSVReader.open(new File(csv_filepath))
+    return reader.allWithHeaders()
+  }
+
+
+  def run(input_csv_filepath : String)(implicit sc: SparkContext) = {
+
+//    val test_label = "guimaras_test"
+//    val src_raster = "/home/spark/datasets/SAR/test/geonode_sar_guimaras.tif"
+//    val qry_shp = "/home/spark/datasets/vectors/reprojected/san_lorenzo.shp"
+//    val metadata_shp = "/home/spark/datasets/vectors/reprojected/lidar_coverage_2017_05/lidar_coverage.shp"
+    // Create CSV file for output and write headers
+    val output_csv_file_name = "/home/spark/datasets/csv/results/" + getCurrentDateAndTime("yyyy-MMdd-hhmmss") + ".csv"
+    val output_csv_file = new File(output_csv_file_name)
+    val output_csv_file_writer = CSVWriter.open(output_csv_file)
+    output_csv_file_writer.writeRow(List(
+      "TEST_LABEL",
+      "TIMESTAMP",
+      "SRC_RASTER_SIZE",
+      "OUT_RASTER_SIZE",
+      "QRY_SHP_PTS",
+      "MET_SHP_FTS",
+      "INDEXING",
+      "MASKING_QRY",
+      "MASK_STITCH",
+      "METADATA_QRY",
+      "IDX_SEC",
+      "MSK_SEC",
+      "STC_SEC",
+      "MET_SEC"))
+
+
+    //val tests_lst : List[Map[String,String]] = readTestCSV(Constants.TESTS_CSV)
+    val tests_lst : List[Map[String,String]] = readTestCSV(input_csv_filepath)
+
+    // Loop through each test parameters in the file
+    for (test_params <- tests_lst) {
+      val test_label = test_params("test_label")
+      val src_raster = test_params("src_raster")
+      val qry_shp = test_params("qry_shp")
+      val metadata_shp = test_params("metadata_shp")
+      //val test_reps = Constants.RUN_REPS
+      val test_reps = test_params("reps").toInt
+
+      // Do @test_reps number of tests
+      for( a <- 1 to test_reps){
+
+
+          val time_idx = time{
+          readGeoTiffToMultibandTileLayerRDD(src_raster)
+        }
+
+        val mtl_rdd : MultibandTileLayerRDD[SpatialKey] = time_idx._1
+
+        val time_msk = time{
+          maskRaster(
+            mtl_rdd,
+            qry_shp)
+        }
+
+        val indexed_mtl_rdd : RDD[(SpatialKey, MultibandTile)] with Metadata[TileLayerMetadata[SpatialKey]]= time_msk._1
+        val time_stitch = time{
+          indexed_mtl_rdd.stitch()
+        }
+        val raster: Raster[MultibandTile] = time_stitch._1 //TODO: trim to extent/envelope of vector. Crop stretches it to its own extents
+
+
+        val time_metamap = time {
+          filterMetadataShapefile(
+            metadata_shp,
+            qry_shp,
+            indexed_mtl_rdd.metadata.layout,
+            indexed_mtl_rdd.metadata.crs)
+        }
+        val metadata_fts_rdd = time_metamap._1
+
+
+
+        //writeToESRIShp(result_rdd, crs)
+        //writeToGeoJSON(result_rdd, crs, "/home/spark/datasets/output/filtered_geojson/")
+
+        // Write Feature UIDs to file
+        //    val ft_uids = result_rdd.map(ft =>
+        //        ft.data("UID")
+        //      ).collect()
+        //    Some(new PrintWriter(new File(output_dir+"feature_uids.list")) { write(ft_uids.mkString("\n")); close })
+
+        // Write filtered results to file
+
+
+        // Write Result to GeoTiff file
+        val output_gtif_filepath = "/home/spark/datasets/output/mask/"+test_label+".tif"
+        GeoTiff(raster, indexed_mtl_rdd.metadata.crs).write(output_gtif_filepath)
+
+
+        //TODO:
+        /**
+          *       1. Master Quad Tree Spatial Key
+          *         (a) generate prefix tree
+          *       2. Tile Quad Tree
+          *         (a) Quad Tree down to the pixel? For clipping to Vector outline?
+          *         (b) A faster way than method (a)
+          */
+        //readTestCSV("/home/spark/datasets/csv/test_params.csv")
+        log("SUMMARY:")
+        log("Raster indexing time: "+time_idx._2)
+        log("Raster masking time: "+time_msk._2)
+        log("Vector filtering time: "+time_metamap._2)
+        //output_csv_file_writer.writeRow(List("TIMESTAMP", "INDEXING", "MASKING_QRY", "METADATA_QRY"))
+        output_csv_file_writer.writeRow(
+          List(
+            test_label,
+            getCurrentDateAndTime("yyyy-MMdd-hhmmss"),
+            getFileSize (src_raster, 2.0),
+            getFileSize(output_gtif_filepath, 2.0),
+            countPointsSHP(qry_shp),
+            countFeaturesSHP(metadata_shp),
+            time_idx._2,
+            time_msk._2,
+            time_stitch._2,
+            time_metamap._2,
+            nanosecToSec(time_idx._2),
+            nanosecToSec(time_msk._2),
+            nanosecToSec(time_stitch._2),
+            nanosecToSec(time_metamap._2)))
+      }
+
+      //val test_params = tests_lst(0)
+
+      output_csv_file_writer.close()
+
+    }
+
+
+
+    println("\n\n>> END <<\n\n")
+  }
+}
+
+object Holder extends Serializable {
+  @transient lazy val log = Logger.getLogger(getClass.getName)
+}

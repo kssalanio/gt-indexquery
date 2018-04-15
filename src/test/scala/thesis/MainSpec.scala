@@ -1,4 +1,4 @@
-package demo
+package thesis
 
 import org.scalatest._
 

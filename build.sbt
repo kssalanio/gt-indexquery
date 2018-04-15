@@ -1,12 +1,12 @@
 // Rename this as you see fit
-name := "index-query"
+name := "thesis"
 
 version := "0.0.1"
 
 scalaVersion := "2.11.12"
 //scalaVersion := "2.12.0"
 
-organization := "com.azavea"
+organization := "com.ken"
 
 licenses := Seq("Apache-2.0" -> url("http://www.apache.org/licenses/LICENSE-2.0.html"))
 
@@ -35,6 +35,10 @@ pomIncludeRepository := { _ => false }
 
 
 resolvers ++= Seq(
+  DefaultMavenRepository,
+  "MavenRepository" at "http://central.maven.org/maven2",
+  "Akka Repository" at "http://repo.akka.io/releases/",
+  "JBoss 3PP" at "https://repository.jboss.org/nexus/content/repositories/thirdparty-releases/",
   "locationtech-releases" at "https://repo.locationtech.org/content/groups/releases",
   "locationtech-snapshots" at "https://repo.locationtech.org/content/groups/snapshots",
   "Boundless Repository" at "http://repo.boundlessgeo.com/main/",
@@ -42,11 +46,20 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq(
+  // This is one finicky dependency. Being explicit in hopes it will stop hurting Travis.
+  //"javax.media" % "jai_core" % "1.1.3" from "http://download.osgeo.org/webdav/geotools/javax/media/jai_core/1.1.3/jai_core-1.1.3.jar",
+  //"javax.media" % "jai_core" % "1.1.3",
+  //"javax.media" % "jai_core" % "1.1.3" from "http://download.osgeo.org/webdav/geotools/javax/media/jai_core/1.1.3/jai_core-1.1.3.jar",
+  //"javax.media" % "jai_codec" % "1.1.3" from "http://download.osgeo.org/webdav/geotools/javax/media/jai_codec/1.1.3/jai_codec-1.1.3.jar",
+  //"javax.media" % "jai_imageio" % "1.1" from "http://download.osgeo.org/webdav/geotools/javax/media/jai_imageio/1.1/jai_imageio-1.1.jar",
   "org.locationtech.geotrellis" %% "geotrellis-spark" % "1.2.0-RC2",
   "org.locationtech.geotrellis" %% "geotrellis-proj4" % "1.2.1",
   "org.locationtech.geotrellis" %% "geotrellis-geotools" % "1.2.1",
-  "org.geotools" % "gt-shapefile" % "17.4",
-  "org.apache.spark"      %%  "spark-core"      % "2.2.0",
+  //"org.geotools" % "gt-shapefile" % "17.4" exclude("javax.media", "jai_core"),
+  //"org.geotools" % "gt-shapefile" % "19.0" exclude("javax.media", "jai_core"),
+  "org.geotools" % "gt-shapefile" % "19.0",
+  "org.apache.spark"      %%  "spark-core"      % "2.2.0" % "provided",
+  //"org.apache.spark"      %%  "spark-core"      % "2.2.0",
   "org.scalatest"         %%  "scalatest"       % "2.2.0",
   "com.lihaoyi" %% "pprint" % "0.4.3",
   //  "org.gdal" % "gdal" % "1.11.2"
