@@ -12,7 +12,7 @@ To fetch this repo:
 git clone https://github.com/kssalanio/gt-indexquerygt-indexquery.git
 ```
 
-To pull dependencies and run tests:
+To pull dependencies and run_csv_tests tests:
 
 ```console
 ./sbt test

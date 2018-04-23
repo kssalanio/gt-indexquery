@@ -99,7 +99,7 @@ object Refactored {
   MultibandTileLayerRDD[SpatialKey] = {
 
     // Read GeoTiff file into Raster RDD
-    println(">>> Reading GeoTiff")
+    println(">>> Reading GeoTiff: "+raster_filepath)
     val input_rdd: RDD[(ProjectedExtent, MultibandTile)] =
       sc.hadoopMultibandGeoTiffRDD(raster_filepath)
 
@@ -187,5 +187,9 @@ object Refactored {
   }
   def countFeaturesSHP(shp_filepath:String): Int = {
     return ShapeFileReader.readMultiPolygonFeatures(shp_filepath).length
+  }
+
+  def os_path_join(path1: String, path2: String): String = {
+    new File(path1,path2).getPath
   }
 }

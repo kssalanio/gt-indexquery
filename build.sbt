@@ -46,25 +46,26 @@ resolvers ++= Seq(
 )
 
 libraryDependencies ++= Seq(
-  // This is one finicky dependency. Being explicit in hopes it will stop hurting Travis.
-  //"javax.media" % "jai_core" % "1.1.3" from "http://download.osgeo.org/webdav/geotools/javax/media/jai_core/1.1.3/jai_core-1.1.3.jar",
-  //"javax.media" % "jai_core" % "1.1.3",
-  //"javax.media" % "jai_core" % "1.1.3" from "http://download.osgeo.org/webdav/geotools/javax/media/jai_core/1.1.3/jai_core-1.1.3.jar",
-  //"javax.media" % "jai_codec" % "1.1.3" from "http://download.osgeo.org/webdav/geotools/javax/media/jai_codec/1.1.3/jai_codec-1.1.3.jar",
-  //"javax.media" % "jai_imageio" % "1.1" from "http://download.osgeo.org/webdav/geotools/javax/media/jai_imageio/1.1/jai_imageio-1.1.jar",
+  // Working combination
   "org.locationtech.geotrellis" %% "geotrellis-spark" % "1.2.0-RC2",
   "org.locationtech.geotrellis" %% "geotrellis-proj4" % "1.2.1",
   "org.locationtech.geotrellis" %% "geotrellis-geotools" % "1.2.1",
-  //"org.geotools" % "gt-shapefile" % "17.4" exclude("javax.media", "jai_core"),
-  //"org.geotools" % "gt-shapefile" % "19.0" exclude("javax.media", "jai_core"),
+
+  // Buffer underflow
+//  "org.locationtech.geotrellis" %% "geotrellis-proj4" % "2.0.0-M1",
+//  "org.locationtech.geotrellis" %% "geotrellis-spark" % "2.0.0-M1",
+//  "org.locationtech.geotrellis" %% "geotrellis-geotools" % "2.0.0-M1",
+
+  //"org.geotools" % "gt-shapefile" % "17.4",
   "org.geotools" % "gt-shapefile" % "19.0",
   "org.apache.spark"      %%  "spark-core"      % "2.2.0" % "provided",
-  //"org.apache.spark"      %%  "spark-core"      % "2.2.0",
+//  "org.apache.spark"      %%  "spark-core"      % "2.2.0",
   "org.scalatest"         %%  "scalatest"       % "2.2.0",
   "com.lihaoyi" %% "pprint" % "0.4.3",
   //  "org.gdal" % "gdal" % "1.11.2"
   "com.github.tototoshi" %% "scala-csv" % "1.3.5",
-  "org.gdal" % "gdal" % "2.1.0"
+  "org.gdal" % "gdal" % "2.1.0",
+  "com.github.pathikrit" %% "better-files" % "2.16.0"
 //  "com.azavea.geotrellis" %% "geotrellis-gdal" % "0.10.0-M1"
 )
 
@@ -80,6 +81,10 @@ assemblyMergeStrategy in assembly := {
   case "META-INF/ECLIPSEF.SF" => MergeStrategy.discard
   case _ => MergeStrategy.first
 }
+
+assemblyShadeRules in assembly := Seq(
+  ShadeRule.rename("org.geotools.data.shapefile.**" -> "gtshapefile.@1").inAll
+)
 
 initialCommands in console := """
  |import geotrellis.raster._

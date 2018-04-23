@@ -4,17 +4,19 @@ import java.io._
 import java.nio.file._
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
+import java.util
 
 import thesis.Constants.{RDD_PARTS, TILE_SIZE}
-import thesis.Main.output_path
 import thesis.Refactored.tile_ceiling_count
 import thesis.ShapeFileReader.readMultiPolygonFeatures
 import geotrellis.proj4.{CRS, _}
+import geotrellis.raster.io.geotiff.reader.GeoTiffReader
 import geotrellis.raster.io.geotiff.{GeoTiff, MultibandGeoTiff}
 import geotrellis.raster.resample.{Bilinear, NearestNeighbor}
 import geotrellis.raster.{MultibandTile, TileLayout, _}
 import geotrellis.spark._
 import geotrellis.spark.io.hadoop._
+import geotrellis.spark.io.index.hilbert.HilbertSpatialKeyIndex
 import geotrellis.spark.io.kryo.KryoRegistrator
 import geotrellis.spark.tiling._
 import geotrellis.util._
@@ -26,8 +28,10 @@ import org.apache.spark.serializer.KryoSerializer
 import org.geotools.data.shapefile.ShapefileDumper
 import org.geotools.feature.DefaultFeatureCollection
 import org.opengis.feature.simple.SimpleFeature
+
 import scala.reflect.ClassTag
 import collection.JavaConverters._
+import thesis.Refactored._
 
 
 object InProgress {
@@ -127,25 +131,16 @@ object InProgress {
     return createSpatialKey(multiband_gtiff.extent, tile_layout, layout_def)
   }
 
-  def readTiles(file_path: String): Unit = {
+  def repeat(len: Int, c: Char) = c.toString * len
 
-    // Spark config
-    val conf =
-      new SparkConf()
-        .setMaster("local")
-        .setAppName("IndexQuery")
-        //.set("spark.default.parallelism", "4")
-        .set("spark.serializer", classOf[KryoSerializer].getName)
-        .set("spark.kryo.registrator", classOf[KryoRegistrator].getName)
-    System.setProperty("spark.ui.enabled", "true")
-    System.setProperty("spark.ui.port", "4040")
+  def padLeft(s: String, len: Int, c: Char) = {
+    repeat(len - s.size, c) + s
+  }
 
-    // Init spark context
-    val spark_context = new SparkContext(conf)
-
+  def readGeotiffAndTile(file_path: String, output_dir_path: String)(implicit sc: SparkContext): Unit = {
     // Read GeoTiff file into Raster RDD
     val inputRdd: RDD[(ProjectedExtent, MultibandTile)] =
-      spark_context.hadoopMultibandGeoTiffRDD(file_path)
+      sc.hadoopMultibandGeoTiffRDD(file_path)
 
     // Tiling layout to TILE_SIZE x TILE_SIZE grids
     val (_, rasterMetaData) =
@@ -167,10 +162,38 @@ object InProgress {
     val final_crs = WebMercator
 
     // Map function : write each tile in RDD to file
+    println(">>> Constructing hilbert index from"
+      +reprojected_rdd.keys.min().toString
+      +" to "
+      +reprojected_rdd.keys.max().toString)
+
+    /**
+      * @TODO: Fix Hilbert Index to a universal TileLayout and Bounding Box
+      */
+    val hilbert_index = {
+      import geotrellis.spark.io.index.hilbert._
+      //val max = (math.pow(2, 32) - 1).toInt
+      //new HilbertSpatialKeyIndex(KeyBounds(SpatialKey(0, 0), SpatialKey(max, max)), 31, 31)
+
+      new HilbertSpatialKeyIndex(
+        KeyBounds(
+          reprojected_rdd.keys.min(),
+          reprojected_rdd.keys.max()),
+        reprojected_rdd.keys.max()._1,
+        reprojected_rdd.keys.max()._2)
+    }
+
     val result = reprojected_rdd.map{ tup =>
       val (spatial_key:SpatialKey, raster_tile:MultibandTile) = tup
       val extent : Extent = spatial_key.extent(rasterMetaData.layout)
-      val gtif_file_path : String = output_path+"/guimaras_"+spatial_key.col+"_"+spatial_key.row+".tif"
+
+      val hilbert_hex = hilbert_index.toIndex(spatial_key).toHexString
+      val padnum = 4
+      val padded_hex = padLeft(hilbert_hex, padnum, '0')
+      //val gtif_file_path : String = output_dir_path+"_"+hilbert_hex+".tif"
+      val gtif_file_path : String = os_path_join(output_dir_path,padded_hex+"_"+spatial_key._1+"_"+spatial_key._2+".tif")
+
+
       Holder.log.debug(s"Cutting $SpatialKey of ${raster_tile.dimensions} cells covering $extent to [$gtif_file_path]")
       // Write tile to GeoTiff file
       GeoTiff(raster_tile, extent, final_crs).write(gtif_file_path)
@@ -184,6 +207,36 @@ object InProgress {
     //spark_context.stop(); //
   }
 
+  def readTiles(tile_dir_path: String)(implicit sc: SparkContext)={
+    // Create Sequence of Geotiffs
+    val tif_file_list = getListOfFiles(tile_dir_path,List[String]("tif"))
+    val gtif_list : List[(String,MultibandGeoTiff)] = tif_file_list.map { tif_file =>
+      (tif_file.getName,GeoTiffReader.readMultiband(tif_file.getAbsolutePath))//.raster.tile)
+    }
+    val tile_crs : geotrellis.proj4.CRS = gtif_list(0)._2.crs
 
+    pprint.pprintln(gtif_list)
+
+    val hilbert_index = {
+      import geotrellis.spark.io.index.hilbert._
+      //val max = (math.pow(2, 32) - 1).toInt
+      //new HilbertSpatialKeyIndex(KeyBounds(SpatialKey(0, 0), SpatialKey(max, max)), 31, 31)
+
+      //TODO: use computed values instead fo dummy values
+      new HilbertSpatialKeyIndex(
+        KeyBounds(GridBounds(0,0,2,5)),
+        2,5)
+    }
+
+    val mtl_seq : Seq[(SpatialKey,MultibandTile)] = gtif_list.map {
+      list_item =>
+        val filename  = list_item._1
+        val mband_gtif = list_item._2
+        (SpatialKey(0,0),mband_gtif.raster.tile)
+    }
+    val mtl_rdd : RDD[(SpatialKey,MultibandTile)] = sc.parallelize(mtl_seq)
+
+    // Create MultibandLayerRDD[K,V] with Metadata from RDD
+  }
 
 }

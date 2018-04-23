@@ -15,6 +15,7 @@ import org.apache.spark.serializer.KryoSerializer
 
 import scala.io.StdIn
 import thesis.Refactored._
+import thesis.InProgress._
 //import sext._
 
 
@@ -23,12 +24,6 @@ object Main{
 
   def bootSentence = "\n\n>>> INITIALIZE <<<\n\n"
   def helloSentence  = "Hello GeoTrellis"
-
-  val test_gtif: String = "/home/spark/datasets/SAR/geonode_sar_guimaras.tif"
-  val catalog_dirpath: String = "/home/spark/datasets/SAR"
-  var output_path : String = "/home/spark/datasets/output/tiled"
-  //val test_gtif: String = "/shared/DATA/datasets/SAR/geonode_sar_guimaras.tif"
-  //val catalog_dirpath: String = "/shared/DATA/datasets/SAR"
 
   def log(msg: String){
     println("> "+msg)
@@ -64,9 +59,9 @@ object Main{
       .setAppName("IndexQuery")
       .set("spark.serializer",        classOf[KryoSerializer].getName)
       .set("spark.kryo.registrator",  classOf[KryoRegistrator].getName)
-      .set("spark.driver.memory",     "512m")
-      .set("spark.yarn.am.memory",    "512m")
-      .set("spark.executor.memory",   "512m")
+      .set("spark.driver.memory",     "1024m")
+      .set("spark.yarn.am.memory",    "1024m")
+      .set("spark.executor.memory",   "1024m")
       .set("spark.eventLog.enabled",            "true")
       .set("spark.eventLog.dir",                "hdfs://sh-master:9000/spark-logs")
       .set("spark.history.provider",            "org.apache.spark.deploy.history.FsHistoryProvider")
@@ -83,12 +78,14 @@ object Main{
   def createSparkConf(): SparkConf = {
     new SparkConf()
       .setMaster("local")
-      .setAppName("IndexQuery")
+      .setAppName("Thesis")
       //.set("spark.default.parallelism", "2")
       .set("spark.serializer", classOf[KryoSerializer].getName)
       .set("spark.kryo.registrator", classOf[KryoRegistrator].getName)
       //.set("spark.akka.frameSize", "512")
-      .set("spark.kryoserializer.buffer.max.mb", "800")
+      //.set("spark.kryoserializer.buffer.max.mb", "800") // Prevent overflow
+      //.set("spark.kryoserializer.buffer.mb","128") // Prevent underflow
+      //.set("spark.serializer.objectStreamReset",	"100")
   }
 
   def main(args: Array[String]): Unit = {
@@ -104,6 +101,7 @@ object Main{
       throw new Exception("Insufficient args!")
     }
 
+    //val conf = createAllSparkConf()
     val conf = createSparkConf()
 //      new SparkConf()
 //        .setMaster("local")
@@ -122,10 +120,13 @@ object Main{
     implicit val sc = new SparkContext(conf)
 
     try {
-      run(args(0))(sc)
+      //run_csv_tests(args(0))(sc)
+      run_spatial_key_tests(args(0),args(1))(sc)
+      //run_tile_reader_tests(args(0))(sc)
+
       // Pause to wait to close the spark context,
       // so that you can check out the UI at http://localhost:4040
-      println("Hit enter to exit.")
+      println("\n\nHit [ENTER] to exit.\n\n")
       StdIn.readLine()
     } finally {
       sc.stop()
@@ -138,7 +139,7 @@ object Main{
   }
 
 
-  def run(input_csv_filepath : String)(implicit sc: SparkContext) = {
+  def run_csv_tests(input_csv_filepath : String)(implicit sc: SparkContext) = {
 
 //    val test_label = "guimaras_test"
 //    val src_raster = "/home/spark/datasets/SAR/test/geonode_sar_guimaras.tif"
@@ -180,8 +181,7 @@ object Main{
       // Do @test_reps number of tests
       for( a <- 1 to test_reps){
 
-
-          val time_idx = time{
+        val time_idx = time{
           readGeoTiffToMultibandTileLayerRDD(src_raster)
         }
 
@@ -266,9 +266,18 @@ object Main{
 
     }
 
-
-
     println("\n\n>> END <<\n\n")
+  }
+
+  def run_spatial_key_tests(gtiff_raster_path : String, output_dir_path: String)(implicit sc: SparkContext): Unit ={
+    val time_idx = time{
+      readGeotiffAndTile(gtiff_raster_path, output_dir_path)
+    }
+    log("Raster indexing time: "+time_idx._2)
+  }
+
+  def run_tile_reader_tests(tile_dir_path: String)(implicit sc: SparkContext) = {
+    readTiles(tile_dir_path)
   }
 }
 
