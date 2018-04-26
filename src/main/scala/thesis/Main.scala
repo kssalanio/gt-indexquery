@@ -132,9 +132,9 @@ object Main{
         * RUN TESTS
         */
 //      run_csv_tests(args(0))(sc)
-      run_spatial_key_tests(args(0),args(1))(sparkSession)
+//      run_spatial_key_tests(args(0),args(1))(sparkSession)
 //      run_prelim_tiling_task(args(0),args(1))(sparkSession)
-//      run_map_metadata(args(0),args(1))(sparkSession)
+      run_map_metadata(args(0),args(1))(sparkSession)
 //      run_create_inverted_index(args(0))(sparkSession)
 //      run_tile_reader_tests(args(0),args(1))(sc)
       println(">>> END OF RUN <<<")
@@ -307,9 +307,11 @@ object Main{
 
   def run_map_metadata(tile_dir_path: String, metadata_shp_filepath: String)(implicit spark_s: SparkSession): Unit ={
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
-    stageMetrics.runAndMeasure(
-      createTileMetadata(tile_dir_path, metadata_shp_filepath)
-    )
+    for( a <- 1 to Constants.RUN_REPS) {
+      stageMetrics.runAndMeasure(
+        createTileMetadata(tile_dir_path, metadata_shp_filepath)
+      )
+    }
   }
 
   def run_create_inverted_index(tile_dir_path: String)(implicit spark_s: SparkSession): Unit ={
