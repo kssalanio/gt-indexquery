@@ -154,12 +154,19 @@ object InProgress {
 
     // Reproject to WebMercator
     // TODO: check projection first and reproject only when needed
+//    val (zoom, reprojected_rdd): (Int, RDD[(SpatialKey, MultibandTile)] with Metadata[TileLayerMetadata[SpatialKey]]) =
+//    MultibandTileLayerRDD(tiled_rdd, rasterMetaData)
+//      .reproject(WebMercator, FloatingLayoutScheme(TILE_SIZE), Bilinear)
+//    val final_crs = WebMercator
+
+    // Reproject to EPSG:32651
+    // TODO: check projection first and reproject only when needed
     val (zoom, reprojected_rdd): (Int, RDD[(SpatialKey, MultibandTile)] with Metadata[TileLayerMetadata[SpatialKey]]) =
     MultibandTileLayerRDD(tiled_rdd, rasterMetaData)
-      .reproject(WebMercator, FloatingLayoutScheme(TILE_SIZE), Bilinear)
-    val final_crs = WebMercator
+      .reproject(CRS.fromEpsgCode(32651), FloatingLayoutScheme(TILE_SIZE), Bilinear)
+    val final_crs = CRS.fromEpsgCode(32651)
 
-//    val negative_keys2 = reprojected_rdd.filter(x => (x._1._1 < 0) || (x._1._2 < 0) )
+    //    val negative_keys2 = reprojected_rdd.filter(x => (x._1._1 < 0) || (x._1._2 < 0) )
 //    println(">>> FOUND NEGATIVE KEYS 2")
 //    pprint.pprintln(negative_keys2)
 
