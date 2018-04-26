@@ -145,7 +145,7 @@ object Main{
     } finally {
 //      sc.stop()
       println("\n\nHit [ENTER] to exit.\n\n")
-      StdIn.readLine()
+      //StdIn.readLine()
       sparkSession.stop()
     }
   }
