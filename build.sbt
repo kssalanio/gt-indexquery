@@ -56,17 +56,20 @@ libraryDependencies ++= Seq(
 //  "org.locationtech.geotrellis" %% "geotrellis-spark" % "2.0.0-M1",
 //  "org.locationtech.geotrellis" %% "geotrellis-geotools" % "2.0.0-M1",
 
-  //"org.geotools" % "gt-shapefile" % "17.4",
+//  "org.geotools" % "gt-shapefile" % "17.4",
   "org.geotools" % "gt-shapefile" % "19.0",
-  "org.apache.spark"      %%  "spark-core"      % "2.2.0" % "provided",
-//  "org.apache.spark"      %%  "spark-core"      % "2.2.0",
+//  "org.geotools" % "gt-shapefile" % "19.0" % "provided",
+//  "org.apache.spark"      %%  "spark-core"      % "2.2.0" % "provided",
+  "org.apache.spark"      %%  "spark-core"      % "2.2.0",
   "org.scalatest"         %%  "scalatest"       % "2.2.0",
+  "org.apache.hadoop" % "hadoop-client"         % "2.7.5",
   "com.lihaoyi" %% "pprint" % "0.4.3",
   //  "org.gdal" % "gdal" % "1.11.2"
   "com.github.tototoshi" %% "scala-csv" % "1.3.5",
   "org.gdal" % "gdal" % "2.1.0",
-  "com.github.pathikrit" %% "better-files" % "2.16.0"
+  "com.github.pathikrit" %% "better-files" % "2.16.0",
 //  "com.azavea.geotrellis" %% "geotrellis-gdal" % "0.10.0-M1"
+  "ch.cern.sparkmeasure" %% "spark-measure" % "0.11"
 )
 
 // When creating fat jar, remote some files with
@@ -82,9 +85,9 @@ assemblyMergeStrategy in assembly := {
   case _ => MergeStrategy.first
 }
 
-assemblyShadeRules in assembly := Seq(
-  ShadeRule.rename("org.geotools.data.shapefile.**" -> "gtshapefile.@1").inAll
-)
+//assemblyShadeRules in assembly := Seq(
+//  ShadeRule.rename("org.opengis.filter.**" -> "opengisfilter.@1").inAll
+//)
 
 initialCommands in console := """
  |import geotrellis.raster._
