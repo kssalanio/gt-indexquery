@@ -16,7 +16,12 @@ import geotrellis.vector.{Feature, Geometry, MultiPolygon, MultiPolygonFeature, 
 import geotrellis.raster._
 import geotrellis.raster.resample._
 import geotrellis.raster.io.geotiff._
+import geotrellis.raster.io.geotiff.reader.GeoTiffReader
 import geotrellis.util._
+import org.apache.spark.sql.SparkSession
+import org.json4s.DefaultFormats
+import org.json4s.jackson.Json
+import thesis.InProgress.invertHilbertIndex
 
 import scala.reflect.ClassTag
 
@@ -192,4 +197,93 @@ object Refactored {
   def os_path_join(path1: String, path2: String): String = {
     new File(path1,path2).getPath
   }
+
+
+  def createTileMetadata(tile_dir_path: String, metadata_shp_filepath :String)(implicit spark_s : SparkSession) = {
+    val metadata_fts : Seq[MultiPolygonFeature[Map[String,Object]]] = ShapeFileReader.readMultiPolygonFeatures(metadata_shp_filepath)
+    val metadata_fts_rdd : RDD[MultiPolygonFeature[Map[String,Object]]]= spark_s.sparkContext.parallelize(metadata_fts, RDD_PARTS)
+
+    val gtiff_files = getListOfFiles(tile_dir_path,List[String]("tif"))
+    val mband_gtiffs : List[(File, MultibandGeoTiff)] = gtiff_files.map { tif_file =>
+      (tif_file,GeoTiffReader.readMultiband(tif_file.getAbsolutePath))
+    }
+
+    mband_gtiffs.map{
+      list_item =>
+        val (tif_file, gtiff) = list_item
+        //TODO: Handle empty intersection (no features intersecting the tile)
+        val merged_map_json : String = createGeoTiffMetadataJSON(tif_file.getName, gtiff, metadata_fts_rdd)
+        val json_dir : File = new File(os_path_join(tile_dir_path,"json"))
+        if (!json_dir.exists) json_dir.mkdir
+
+        new PrintWriter(
+//          tif_file.getAbsoluteFile.toString.replaceAll("\\.[^.]*$", "") + ".json")
+          os_path_join(json_dir.getAbsolutePath, tif_file.getName.replaceAll("\\.[^.]*$", "") + ".json"))
+        {
+          write(merged_map_json); close }
+    }
+  }
+
+  def createGeoTiffMetadataJSON(tif_filename:String, tif_file: MultibandGeoTiff, metadata_fts_rdd: RDD[MultiPolygonFeature[Map[String, Object]]])(implicit spark_s : SparkSession): String = {
+    val result_rdd : RDD[MultiPolygonFeature[Map[String,Object]]] = metadata_fts_rdd.filter(
+      ft => ft.geom.intersects(tif_file.extent)
+    )
+    val ft_count =result_rdd.count()
+
+    val hex_code = tif_filename.split("_")(0)
+    val tile_code_map = Map[String, Object]("tile_file_name" -> tif_filename,"tile_hex_code" -> hex_code)
+
+    if(ft_count >= 1) {
+      Json(DefaultFormats).write(tile_code_map) + ",\n" +
+        result_rdd.aggregate[String]("")(
+          {(acc, cur_ft) =>
+            val map_json = Json(DefaultFormats).write(cur_ft.data)
+            if(acc.length > 0 && map_json.length > 0){
+              acc + ",\n" + map_json
+            }else{
+              acc + map_json
+            }
+          },
+          {(acc1, acc2) =>
+            if(acc1.length > 0 && acc2.length > 0) {
+              acc1 + ",\n" + acc2
+            }else{
+              acc1 + acc2
+            }
+          }
+        )
+    }else{
+      Json(DefaultFormats).write(tile_code_map) + ",\n" +
+        Json(DefaultFormats).write(Map[String, Object]())
+    }
+  }
+
+//  def jsonStrToMap(jsonStr: String): Map[String, Any] = {
+//    Json(DefaultFormats).parse(jsonStr).extract[Map[String, Any]]
+//  }
+
+  def createInvertedIndex(tile_dir_path: String)(implicit spark_s : SparkSession)={
+    val json_files = getListOfFiles(tile_dir_path,List[String]("json"))
+    val json_files_rdd = spark_s.sparkContext.wholeTextFiles(tile_dir_path)
+    json_files_rdd.flatMap {
+      case (path, text) =>
+        text.trim.filterNot(c => c  == '{' || c == '}').split("\",\"").map{
+                    text_string =>
+                      text_string.filterNot(c => c  == '"').split(":")(0)
+                  }.map(keyword => (keyword, path))
+    }
+    .map {
+      case (word, path) => ((word, path), 1)
+    }
+    .reduceByKey{    // Count the equal (word, path) pairs, as before
+      (count1, count2) => count1 + count2
+    }
+    .map {           // Rearrange the tuples; word is now the key we want.
+      case ((word, path), n) => (word, (path, n))
+    }
+    .groupByKey
+    .mapValues(iterator => iterator.mkString(", "))
+    .saveAsTextFile(tile_dir_path+"/inverted_idx")
+  }
+
 }
