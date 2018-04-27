@@ -18,6 +18,7 @@ import geotrellis.vector._
 import geotrellis.vector.io._
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
+import org.apache.spark.sql.SparkSession
 import org.geotools.data.shapefile.ShapefileDumper
 import org.geotools.feature.DefaultFeatureCollection
 import org.opengis.feature.simple.SimpleFeature
@@ -240,8 +241,9 @@ object InProgress {
     return bitVectors
   }
 
-  def readTiles(tile_dir_path: String, output_gtif_path: String)(implicit sc: SparkContext)={
+  def readTiles(tile_dir_path: String, output_gtif_path: String)(implicit spark_s: SparkSession)={
     // Create Sequence of Geotiffs
+    implicit val sc = spark_s.sparkContext
     val tif_file_list = getListOfFiles(tile_dir_path,List[String]("tif"))
     val gtif_list : List[(String,MultibandGeoTiff)] = tif_file_list.map { tif_file =>
       (tif_file.getName,GeoTiffReader.readMultiband(tif_file.getAbsolutePath))//.raster.tile)

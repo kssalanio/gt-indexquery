@@ -129,14 +129,17 @@ object Main{
 
     try {
       /**
-        * RUN TESTS
+        * Select test based on first CLI arg
         */
-//      run_csv_tests(args(0))(sc)
-//      run_spatial_key_tests(args(0),args(1))(sparkSession)
-//      run_prelim_tiling_task(args(0),args(1))(sparkSession)
-//      run_map_metadata(args(0),args(1))(sparkSession)
-      run_create_inverted_index(args(0))(sparkSession)
-//      run_tile_reader_tests(args(0),args(1))(sc)
+      args(0) match {
+        case "csv" => run_csv_tests(args(1))(sparkSession)
+        case "spatial_key" => run_spatial_key_tests(args(1),args(2))(sparkSession)
+        case "map_meta" => run_map_metadata(args(1),args(2))(sparkSession)
+        case "inverted_idx" => run_create_inverted_index(args(1))(sparkSession)
+        case "read_tiles" => run_tile_reader_tests(args(1),args(2))(sparkSession)
+        case _ => run_prelim_tiling_task(args(1),args(2))(sparkSession)
+
+      }
       println(">>> END OF RUN <<<")
 
       // Pause to wait to close the spark context,
@@ -156,9 +159,11 @@ object Main{
   }
 
 
-  def run_csv_tests(input_csv_filepath : String)(implicit sc: SparkContext) = {
+  def run_csv_tests(input_csv_filepath : String)(implicit spark_s: SparkSession) = {
 
     // Create CSV file for output and write headers
+    implicit val sc = spark_s.sparkContext
+
     val output_csv_file_name = "/home/spark/datasets/csv/results/" + getCurrentDateAndTime("yyyy-MMdd-hhmmss") + ".csv"
     val output_csv_file = new File(output_csv_file_name)
     val output_csv_file_writer = CSVWriter.open(output_csv_file)
@@ -323,9 +328,15 @@ object Main{
     }
   }
 
-  def run_tile_reader_tests(tile_dir_path: String, output_gtif_path: String)(implicit sc: SparkContext) = {
-    readTiles(tile_dir_path, output_gtif_path)
+  def run_tile_reader_tests(tile_dir_path: String, output_gtif_path: String)(implicit spark_s: SparkSession) = {
+    val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
+    for( run_rep <- 1 to Constants.RUN_REPS) {
+      stageMetrics.runAndMeasure(
+        readTiles(tile_dir_path, output_gtif_path)
 //    readTiles_v2(tile_dir_path, output_gtif_path)
+      )
+    }
+
   }
 }
 
