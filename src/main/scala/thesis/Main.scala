@@ -316,9 +316,9 @@ object Main{
 
   def run_create_inverted_index(tile_dir_path: String)(implicit spark_s: SparkSession): Unit ={
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
-    for( a <- 1 to Constants.RUN_REPS) {
+    for( run_rep <- 1 to Constants.RUN_REPS) {
       stageMetrics.runAndMeasure(
-        createInvertedIndex(tile_dir_path)
+        createInvertedIndex(tile_dir_path, run_rep)
       )
     }
   }

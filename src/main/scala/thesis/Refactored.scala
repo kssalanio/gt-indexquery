@@ -262,7 +262,7 @@ object Refactored {
 //    Json(DefaultFormats).parse(jsonStr).extract[Map[String, Any]]
 //  }
 
-  def createInvertedIndex(tile_dir_path: String)(implicit spark_s : SparkSession)={
+  def createInvertedIndex(tile_dir_path: String, run_rep: Int)(implicit spark_s : SparkSession)={
     val json_files = getListOfFiles(tile_dir_path,List[String]("json"))
     val json_files_rdd = spark_s.sparkContext.wholeTextFiles(tile_dir_path)
     json_files_rdd.flatMap {
@@ -283,7 +283,7 @@ object Refactored {
     }
     .groupByKey
     .mapValues(iterator => iterator.mkString(", "))
-    .saveAsTextFile(tile_dir_path+"/inverted_idx")
+    .saveAsTextFile(tile_dir_path+"/inverted_idx_"+run_rep)
   }
 
 }
