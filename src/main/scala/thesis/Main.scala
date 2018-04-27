@@ -134,8 +134,8 @@ object Main{
 //      run_csv_tests(args(0))(sc)
 //      run_spatial_key_tests(args(0),args(1))(sparkSession)
 //      run_prelim_tiling_task(args(0),args(1))(sparkSession)
-      run_map_metadata(args(0),args(1))(sparkSession)
-//      run_create_inverted_index(args(0))(sparkSession)
+//      run_map_metadata(args(0),args(1))(sparkSession)
+      run_create_inverted_index(args(0))(sparkSession)
 //      run_tile_reader_tests(args(0),args(1))(sc)
       println(">>> END OF RUN <<<")
 
