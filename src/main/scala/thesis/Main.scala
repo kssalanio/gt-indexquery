@@ -316,9 +316,11 @@ object Main{
 
   def run_create_inverted_index(tile_dir_path: String)(implicit spark_s: SparkSession): Unit ={
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
-    stageMetrics.runAndMeasure(
-      createInvertedIndex(tile_dir_path)
-    )
+    for( a <- 1 to Constants.RUN_REPS) {
+      stageMetrics.runAndMeasure(
+        createInvertedIndex(tile_dir_path)
+      )
+    }
   }
 
   def run_tile_reader_tests(tile_dir_path: String, output_gtif_path: String)(implicit sc: SparkContext) = {
