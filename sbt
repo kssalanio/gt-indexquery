@@ -23,8 +23,8 @@ declare -r sbt_launch_mvn_snapshot_repo="http://repo.scala-sbt.org/scalasbt/mave
 
 #declare -r default_jvm_opts_common="-Xms512m -Xmx1536m -Xss2m"
 #declare -r default_jvm_opts_common="-Xms2048m -Xmx6144m -Xss2m"
-#rdeclare -r default_jvm_opts_common="-Xms4096m -Xmx12288m -Xss16m"
-declare -r default_jvm_opts_common="-Xms4096m -Xmx14336m -Xss16m"
+declare -r default_jvm_opts_common="-Xms4096m -Xmx12288m -Xss16m"
+#declare -r default_jvm_opts_common="-Xms4096m -Xmx14336m -Xss16m"
 declare -r noshare_opts="-Dsbt.global.base=project/.sbtboot -Dsbt.boot.directory=project/.boot -Dsbt.ivy.home=project/.ivy"
 
 declare sbt_jar sbt_dir sbt_create sbt_version sbt_script sbt_new

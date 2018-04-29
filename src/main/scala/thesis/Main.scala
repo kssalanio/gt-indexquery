@@ -92,6 +92,7 @@ object Main{
       //.set("spark.serializer.objectStreamReset",	"100")
   }
 
+
   def main(args: Array[String]): Unit = {
     //Initialize
     println(System.getProperty("java.library.path"))
@@ -138,6 +139,7 @@ object Main{
         case "map_meta" => run_map_metadata(args(1),args(2))(sparkSession)
         case "inverted_idx" => run_create_inverted_index(args(1))(sparkSession)
         case "query_shp" => run_query_tiles(args(1),args(2),args(3))(sparkSession)
+        case "cmp_meta" => run_cmp_meta(args(1),args(2))(sparkSession)
         case "read_tiles" => run_tile_reader_tests(args(1),args(2))(sparkSession)
         case "run_prelim" => run_prelim_tiling_task(args(1),args(2))(sparkSession)
         case _ => println("ERROR: Invalid first CLI argument")
@@ -150,7 +152,7 @@ object Main{
     } finally {
 //      sc.stop()
       println("\n\nHit [ENTER] to exit.\n\n")
-      //StdIn.readLine()
+      StdIn.readLine()
       sparkSession.stop()
     }
   }
@@ -346,6 +348,15 @@ object Main{
       stageMetrics.runAndMeasure(
         queryTiles(tile_dir_path, query_shp, output_gtif_path)
         //    readTiles_v2(tile_dir_path, output_gtif_path)
+      )
+    }
+  }
+
+  def run_cmp_meta(tile_dir_path: String, merged_tif_path: String) (implicit spark_s: SparkSession) = {
+    val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
+    for( run_rep <- 1 to Constants.RUN_REPS) {
+      stageMetrics.runAndMeasure(
+        compareMetadata(tile_dir_path, merged_tif_path)
       )
     }
   }
