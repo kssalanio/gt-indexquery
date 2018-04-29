@@ -560,8 +560,8 @@ object InProgress {
       LayoutDefinition(
         GridExtent(
           raster_merged_extents,
-          10.0, //thesis.Constants.TILE_SIZE.toDouble,
-          10.0 //thesis.Constants.TILE_SIZE.toDouble
+          raster_merged_extents.width/(thesis.Constants.TILE_SIZE*(hilbert_index.xResolution+1)).toDouble, //thesis.Constants.TILE_SIZE.toDouble,
+          raster_merged_extents.height/(thesis.Constants.TILE_SIZE*(hilbert_index.yResolution+1)).toDouble //thesis.Constants.TILE_SIZE.toDouble
         ),
         thesis.Constants.TILE_SIZE,
         thesis.Constants.TILE_SIZE
