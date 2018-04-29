@@ -441,7 +441,7 @@ object InProgress {
       hilbert_index.keyBounds)
     val rdd_with_meta = ContextRDD(mtl_rdd, recreated_metadata)
     println("CREATED METADATA: ")
-    pprint.pprintln(rdd_with_meta)
+    pprint.pprintln(recreated_metadata)
 
     //Stitches the raster together
 //    val raster_tile: MultibandTile = rdd_with_meta.stitch()
