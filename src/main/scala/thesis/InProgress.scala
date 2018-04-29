@@ -422,7 +422,6 @@ object InProgress {
     val raster_tile: MultibandTile = mtl_rdd.stitch()
 
 
-
     //TODO: Ongoing here
   }
 

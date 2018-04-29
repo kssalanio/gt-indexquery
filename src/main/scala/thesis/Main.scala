@@ -125,6 +125,7 @@ object Main{
       .config("spark.kryo.registrator", classOf[KryoRegistrator].getName)
       .config("spark.kryoserializer.buffer.max.mb", "800") // Prevent overflow
       .config("spark.ui.enabled", "true")
+      .config("spark.executor.memory",   "14g")
       .getOrCreate()
 
     try {
