@@ -133,7 +133,7 @@ object Main{
         */
       args(0) match {
         case "csv" => run_csv_tests(args(1))(sparkSession)
-        case "spatial_key" => run_spatial_key_tests(args(1),args(2))(sparkSession)
+        case "tile_raster" => run_spatial_key_tests(args(1),args(2))(sparkSession)
         case "map_meta" => run_map_metadata(args(1),args(2))(sparkSession)
         case "inverted_idx" => run_create_inverted_index(args(1))(sparkSession)
         case "read_tiles" => run_tile_reader_tests(args(1),args(2))(sparkSession)
