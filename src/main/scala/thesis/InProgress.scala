@@ -368,7 +368,7 @@ object InProgress {
       }
 
     )
-
+    println("Min/Max XY:")
     pprint.pprintln(min_max_x)
     pprint.pprintln(min_max_y)
     val xResolution = min_max_x._2
@@ -440,6 +440,8 @@ object InProgress {
       tile_crs,
       hilbert_index.keyBounds)
     val rdd_with_meta = ContextRDD(mtl_rdd, recreated_metadata)
+    println("CREATED METADATA: ")
+    pprint.pprintln(rdd_with_meta)
 
     //Stitches the raster together
 //    val raster_tile: MultibandTile = rdd_with_meta.stitch()
@@ -583,5 +585,4 @@ object InProgress {
     println("MERGED: ")
     pprint.pprintln(merged_raster_metadata)
   }
-
 }
