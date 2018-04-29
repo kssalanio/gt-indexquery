@@ -7,7 +7,7 @@ object Constants {
 //  val RDD_PARTS = 4
   val RDD_PARTS = 40
 //  val RUN_REPS = 5
-  val RUN_REPS = 1
+  val RUN_REPS = 11
   val PAD_LENGTH = 8
   //val TESTS_CSV = "/home/spark/datasets/csv/test_params_looc.csv"
   //val TESTS_CSV = "/home/spark/datasets/csv/test_params_sablayan.csv"
