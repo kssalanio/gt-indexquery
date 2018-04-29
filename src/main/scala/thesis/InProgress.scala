@@ -376,7 +376,6 @@ object InProgress {
     val yResolution = min_max_y._2
 
     val hilbert_index = {
-      import geotrellis.spark.io.index.hilbert._
       val max_int = (math.pow(2, 32) - 1).toInt
       //new HilbertSpatialKeyIndex(KeyBounds(SpatialKey(0, 0), SpatialKey(max, max)), 31, 31)
 
@@ -395,9 +394,9 @@ object InProgress {
         val mband_gtif: MultibandGeoTiff = list_item._2
         val bitvectors = invertHilbertIndex(hex_hilbert,xResolution,yResolution)
 
-        pprint.pprintln(filename + " | "
-          + bitvectors(0).toLong + " , "+ bitvectors(1).toLong
-          + " | " + mband_gtif.extent)
+//        pprint.pprintln(filename + " | "
+//          + bitvectors(0).toLong + " , "+ bitvectors(1).toLong
+//          + " | " + mband_gtif.extent)
 
         val spatialKey = SpatialKey(bitvectors(0).toLong.toInt,bitvectors(1).toLong.toInt)
         val mband_tile = mband_gtif.raster.tile
@@ -417,6 +416,12 @@ object InProgress {
 
     val extents = new Extent(x_vals.min, y_vals.min, x_vals.max, y_vals.max)
     println("Extents: "+extents.toString())
+
+    // Create MultibandLayerRDD[K,V] with Metadata from RDD
+    val mtl_rdd : RDD[(SpatialKey,MultibandTile)] = sc.parallelize(mtl_seq)
+    val raster_tile: MultibandTile = mtl_rdd.stitch()
+
+
 
     //TODO: Ongoing here
   }
