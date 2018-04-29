@@ -241,6 +241,7 @@ object InProgress {
     return bitVectors
   }
 
+
   def readTiles(tile_dir_path: String, output_gtif_path: String)(implicit spark_s: SparkSession)={
     // Create Sequence of Geotiffs
     implicit val sc = spark_s.sparkContext
@@ -255,17 +256,22 @@ object InProgress {
       *TODO: use computed values instead fo dummy values
       * Maybe compute first and last tiles from filenames sorted by hex code?
      */
-
     val xResolution = 2
     val yResolution = 5
+    // Get x,y resolution from list of tile file names
+
+    val XYList = tif_file_list.map{
+      tif_file =>
+        tif_file.getName.split(".")(0).split("_").slice(1,2)
+    }
 
     val hilbert_index = {
       import geotrellis.spark.io.index.hilbert._
-      //val max = (math.pow(2, 32) - 1).toInt
+      val max_int = (math.pow(2, 32) - 1).toInt
       //new HilbertSpatialKeyIndex(KeyBounds(SpatialKey(0, 0), SpatialKey(max, max)), 31, 31)
 
       new HilbertSpatialKeyIndex(
-        KeyBounds(GridBounds(0,0,xResolution,yResolution)),
+        KeyBounds(GridBounds(0,0,max_int,max_int)),
         xResolution,yResolution)
     }
 
@@ -325,6 +331,93 @@ object InProgress {
     val tif_file_list = getListOfFiles(tile_dir_path,List[String]("tif"))
     val test_rdd_tiles: RDD[(ProjectedExtent, MultibandTile)] = sc.hadoopMultibandGeoTiffRDD(tile_dir_path)
     println("Num Tiles: "+test_rdd_tiles.count())
+  }
+
+  def queryTiles(tile_dir_path: String, query_shp: String, output_gtif_path: String)(implicit spark_s: SparkSession)= {
+    // Create Sequence of Geotiffs
+    implicit val sc = spark_s.sparkContext
+    val tif_file_list = getListOfFiles(tile_dir_path, List[String]("tif"))
+    val gtif_list: List[(String, MultibandGeoTiff)] = tif_file_list.map { tif_file =>
+      (tif_file.getName, GeoTiffReader.readMultiband(tif_file.getAbsolutePath)) //.raster.tile)
+    }
+
+    val tile_crs: geotrellis.proj4.CRS = gtif_list(0)._2.crs
+
+    // Get x,y resolution from list of tile file names
+    val xy_list = tif_file_list.map {
+      tif_file =>
+        tif_file.getName.split('.')(0).split('_').drop(1).map(_.toInt)
+    }
+
+    val min_max_x = xy_list.aggregate[(Int,Int)](xy_list(0)(0),xy_list(0)(0))(
+        { (acc, item) =>   // Combining accumulator and element
+                    (math.min(acc._1, item(0)), math.max(acc._2, item(0)))
+                  },
+        { (acc1, acc2) =>   // Combining accumulator and element
+                    (math.min(acc1._1, acc2._1), math.max(acc1._2, acc2._2))
+        }
+
+    )
+
+    val min_max_y = xy_list.aggregate[(Int,Int)](xy_list(0)(1),xy_list(0)(1))(
+      { (acc, item) =>   // Combining accumulator and element
+        (math.min(acc._1, item(1)), math.max(acc._2, item(1)))
+      },
+      { (acc1, acc2) =>   // Combining accumulator and element
+        (math.min(acc1._1, acc2._1), math.max(acc1._2, acc2._2))
+      }
+
+    )
+
+    pprint.pprintln(min_max_x)
+    pprint.pprintln(min_max_y)
+    val xResolution = min_max_x._2
+    val yResolution = min_max_y._2
+
+    val hilbert_index = {
+      import geotrellis.spark.io.index.hilbert._
+      val max_int = (math.pow(2, 32) - 1).toInt
+      //new HilbertSpatialKeyIndex(KeyBounds(SpatialKey(0, 0), SpatialKey(max, max)), 31, 31)
+
+      new HilbertSpatialKeyIndex(
+        KeyBounds(GridBounds(0, 0, max_int, max_int)),
+        xResolution, yResolution)
+    }
+
+    val x_vals = scala.collection.mutable.ArrayBuffer.empty[Double]
+    val y_vals = scala.collection.mutable.ArrayBuffer.empty[Double]
+
+    val mtl_seq : Seq[(SpatialKey,MultibandTile)] = gtif_list.map {
+      list_item =>
+        val filename : String  = list_item._1
+        val hex_hilbert = filename.split("_")(0)
+        val mband_gtif: MultibandGeoTiff = list_item._2
+        val bitvectors = invertHilbertIndex(hex_hilbert,xResolution,yResolution)
+
+        pprint.pprintln(filename + " | "
+          + bitvectors(0).toLong + " , "+ bitvectors(1).toLong
+          + " | " + mband_gtif.extent)
+
+        val spatialKey = SpatialKey(bitvectors(0).toLong.toInt,bitvectors(1).toLong.toInt)
+        val mband_tile = mband_gtif.raster.tile
+
+        if( spatialKey.equals(hilbert_index.keyBounds.minKey)){
+          x_vals += mband_gtif.extent.xmin
+          y_vals += mband_gtif.extent.ymax
+        }
+
+        if( spatialKey.equals(hilbert_index.keyBounds.maxKey)){
+          x_vals += mband_gtif.extent.xmax
+          y_vals += mband_gtif.extent.ymin
+        }
+
+        (spatialKey,mband_tile)
+    }
+
+    val extents = new Extent(x_vals.min, y_vals.min, x_vals.max, y_vals.max)
+    println("Extents: "+extents.toString())
+
+    //TODO: Ongoing here
   }
 
 }

@@ -236,7 +236,7 @@ object Refactored {
     if(ft_count >= 1) {
       Json(DefaultFormats).write(tile_code_map) + ",\n" +
         result_rdd.aggregate[String]("")(
-          {(acc, cur_ft) =>
+          {(acc, cur_ft) =>   // Combining accumulator and element
             val map_json = Json(DefaultFormats).write(cur_ft.data)
             if(acc.length > 0 && map_json.length > 0){
               acc + ",\n" + map_json
@@ -244,7 +244,7 @@ object Refactored {
               acc + map_json
             }
           },
-          {(acc1, acc2) =>
+          {(acc1, acc2) =>  // Combining accumulator and another accumulator
             if(acc1.length > 0 && acc2.length > 0) {
               acc1 + ",\n" + acc2
             }else{
