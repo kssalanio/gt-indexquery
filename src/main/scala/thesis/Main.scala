@@ -137,8 +137,8 @@ object Main{
         case "map_meta" => run_map_metadata(args(1),args(2))(sparkSession)
         case "inverted_idx" => run_create_inverted_index(args(1))(sparkSession)
         case "read_tiles" => run_tile_reader_tests(args(1),args(2))(sparkSession)
-        case _ => run_prelim_tiling_task(args(1),args(2))(sparkSession)
-
+        case "run_prelim" => run_prelim_tiling_task(args(1),args(2))(sparkSession)
+        case _ => println("ERROR: Invalid first CLI argument")
       }
       println(">>> END OF RUN <<<")
 
