@@ -455,16 +455,15 @@ object InProgress {
 
 //    val raster_tile: MultibandTile = rdd_with_meta.stitch().mask(region) // Correct so far
 //    GeoTiff(raster_tile, raster_merged_extents, tile_crs).write(output_gtif_path)
-
-    val raster_tile: MultibandTile = rdd_with_meta.filter().where(Intersects(query_extents)).result.mask(region).stitch // Correct so far
-    GeoTiff(raster_tile, raster_merged_extents, tile_crs).write(output_gtif_path)
-
+    val filtered_rdd = rdd_with_meta.filter().where(Intersects(query_extents)).result
+    val raster_tile: Raster[MultibandTile] = filtered_rdd.mask(region).stitch // Correct so far
+    GeoTiff(raster_tile, tile_crs).write(output_gtif_path)
 
     //    val raster_tile: MultibandTile = rdd_with_meta.stitch().mask(region).crop(query_extents) // Correct so far
 //    GeoTiff(raster_tile, query_extents, tile_crs).write(output_gtif_path)
 
-//    val raster_tile: MultibandTile = rdd_with_meta.mask(region).stitch() // Does not work
-//    GeoTiff(raster_tile, query_extents, tile_crs).write(output_gtif_path)
+//    val raster_tile: Raster[MultibandTile] = rdd_with_meta.mask(region).stitch() // To be tested
+//    GeoTiff(raster_tile, tile_crs).write(output_gtif_path)
 
 
   }
