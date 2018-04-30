@@ -133,15 +133,23 @@ object Main{
       /**
         * Select test based on first CLI arg
         */
+      val run_reps = args(1).toInt
       args(0) match {
-        case "csv" => run_csv_tests(args(1))(sparkSession)
-        case "tile_raster" => run_spatial_key_tests(args(1),args(2))(sparkSession)
-        case "map_meta" => run_map_metadata(args(1),args(2))(sparkSession)
-        case "inverted_idx" => run_create_inverted_index(args(1))(sparkSession)
-        case "query_shp" => run_query_tiles(args(1),args(2),args(3))(sparkSession)
-        case "cmp_meta" => run_cmp_meta(args(1),args(2))(sparkSession)
-        case "read_tiles" => run_tile_reader_tests(args(1),args(2))(sparkSession)
-        case "run_prelim" => run_prelim_tiling_task(args(1),args(2))(sparkSession)
+        case "csv" => run_csv_tests(args(2))(sparkSession)
+        case "tile_raster" => run_spatial_key_tests(
+          run_reps, args(2),args(3))(sparkSession)
+        case "map_meta" => run_map_metadata(
+          run_reps, args(2),args(3))(sparkSession)
+        case "inverted_idx" => run_create_inverted_index(
+          run_reps, args(2))(sparkSession)
+        case "query_shp" => run_query_tiles(
+          run_reps, args(2),args(3),args(4))(sparkSession)
+        case "cmp_meta" => run_cmp_meta(
+          run_reps, args(2),args(3))(sparkSession)
+        case "read_tiles" => run_tile_reader_tests(
+          run_reps, args(2),args(3))(sparkSession)
+        case "run_prelim" => run_prelim_tiling_task(
+          run_reps, args(2),args(3))(sparkSession)
         case _ => println("ERROR: Invalid first CLI argument")
       }
       println(">>> END OF RUN <<<")
@@ -163,7 +171,7 @@ object Main{
   }
 
 
-  def run_csv_tests(input_csv_filepath : String)(implicit spark_s: SparkSession) = {
+  def run_csv_tests(run_reps :Int, input_csv_filepath : String)(implicit spark_s: SparkSession) = {
 
     // Create CSV file for output and write headers
     implicit val sc = spark_s.sparkContext
@@ -197,7 +205,6 @@ object Main{
       val src_raster = test_params("src_raster")
       val qry_shp = test_params("qry_shp")
       val metadata_shp = test_params("metadata_shp")
-      //val test_reps = Constants.RUN_REPS
       val test_reps = test_params("reps").toInt
 
       // Do @test_reps number of tests
@@ -292,14 +299,14 @@ object Main{
   }
 
   //def run_spatial_key_tests(gtiff_raster_path : String, output_dir_path: String)(implicit sc: SparkContext): Unit ={
-  def run_prelim_tiling_task(gtiff_raster_path : String, output_dir_path: String)(implicit spark_s: SparkSession): Unit = {
+  def run_prelim_tiling_task(run_reps :Int, gtiff_raster_path : String, output_dir_path: String)(implicit spark_s: SparkSession): Unit = {
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
     val guimaras_raster_path = "/home/spark/datasets/SAR/geonode_sar_guimaras.tif"
     stageMetrics.runAndMeasure(
       readGeotiffAndTile(guimaras_raster_path, output_dir_path)(spark_s.sparkContext))
   }
 
-  def run_spatial_key_tests(gtiff_raster_path : String, output_dir_path: String)(implicit spark_s: SparkSession): Unit ={
+  def run_spatial_key_tests(run_reps :Int, gtiff_raster_path : String, output_dir_path: String)(implicit spark_s: SparkSession): Unit ={
       val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
 //    val time_idx = time{
 //      readGeotiffAndTile(gtiff_raster_path, output_dir_path)
@@ -308,33 +315,33 @@ object Main{
 //    val guimaras_raster_path = "/home/spark/datasets/SAR/geonode_sar_guimaras.tif"
 //    stageMetrics.runAndMeasure(
 //        readGeotiffAndTile(guimaras_raster_path, output_dir_path)(spark_s.sparkContext))
-    for( a <- 1 to Constants.RUN_REPS) {
+    for( a <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
         readGeotiffAndTile(gtiff_raster_path, output_dir_path)(spark_s.sparkContext))
     }
   }
 
-  def run_map_metadata(tile_dir_path: String, metadata_shp_filepath: String)(implicit spark_s: SparkSession): Unit ={
+  def run_map_metadata(run_reps :Int, tile_dir_path: String, metadata_shp_filepath: String)(implicit spark_s: SparkSession): Unit ={
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
-    for( a <- 1 to Constants.RUN_REPS) {
+    for( a <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
         createTileMetadata(tile_dir_path, metadata_shp_filepath)
       )
     }
   }
 
-  def run_create_inverted_index(tile_dir_path: String)(implicit spark_s: SparkSession): Unit ={
+  def run_create_inverted_index(run_reps :Int, tile_dir_path: String)(implicit spark_s: SparkSession): Unit ={
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
-    for( run_rep <- 1 to Constants.RUN_REPS) {
+    for( run_rep <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
         createInvertedIndex(tile_dir_path, run_rep)
       )
     }
   }
 
-  def run_tile_reader_tests(tile_dir_path: String, output_gtif_path: String)(implicit spark_s: SparkSession) = {
+  def run_tile_reader_tests(run_reps :Int, tile_dir_path: String, output_gtif_path: String)(implicit spark_s: SparkSession) = {
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
-    for( run_rep <- 1 to Constants.RUN_REPS) {
+    for( run_rep <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
         readTiles(tile_dir_path, output_gtif_path)
 //    readTiles_v2(tile_dir_path, output_gtif_path)
@@ -342,9 +349,9 @@ object Main{
     }
   }
 
-  def run_query_tiles(tile_dir_path: String, query_shp: String, output_gtif_path:String)(implicit spark_s: SparkSession) = {
+  def run_query_tiles(run_reps :Int, tile_dir_path: String, query_shp: String, output_gtif_path:String)(implicit spark_s: SparkSession) = {
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
-    for( run_rep <- 1 to Constants.RUN_REPS) {
+    for( run_rep <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
         queryTiles(tile_dir_path, query_shp, output_gtif_path)
         //    readTiles_v2(tile_dir_path, output_gtif_path)
@@ -352,9 +359,9 @@ object Main{
     }
   }
 
-  def run_cmp_meta(tile_dir_path: String, merged_tif_path: String) (implicit spark_s: SparkSession) = {
+  def run_cmp_meta(run_reps :Int, tile_dir_path: String, merged_tif_path: String) (implicit spark_s: SparkSession) = {
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
-    for( run_rep <- 1 to Constants.RUN_REPS) {
+    for( run_rep <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
         compareMetadata(tile_dir_path, merged_tif_path)
       )
