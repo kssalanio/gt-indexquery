@@ -133,9 +133,13 @@ object Main{
       /**
         * Select test based on first CLI arg
         */
+      println("ARGUMENTS:")
+      pprint.pprintln(args)
+
       val run_reps = args(1).toInt
       args(0) match {
-        case "csv" => run_csv_tests(args(2))(sparkSession)
+        case "csv" => run_csv_tests(
+          run_reps, args(2))(sparkSession)
         case "tile_raster" => run_spatial_key_tests(
           run_reps, args(2),args(3))(sparkSession)
         case "map_meta" => run_map_metadata(
