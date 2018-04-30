@@ -10,6 +10,7 @@ import geotrellis.raster.io.geotiff.{GeoTiff, MultibandGeoTiff}
 import geotrellis.raster.resample.{Bilinear, NearestNeighbor}
 import geotrellis.raster.{MultibandTile, TileLayout, _}
 import geotrellis.spark._
+import geotrellis.spark.io.Intersects
 import geotrellis.spark.io.hadoop._
 import geotrellis.spark.io.index.hilbert._
 import geotrellis.spark.tiling._
@@ -452,10 +453,14 @@ object InProgress {
     val query_extents = features(0).envelope
     val attribute_table = features(0).data
 
-    val raster_tile: MultibandTile = rdd_with_meta.stitch().mask(region) // Correct so far
+//    val raster_tile: MultibandTile = rdd_with_meta.stitch().mask(region) // Correct so far
+//    GeoTiff(raster_tile, raster_merged_extents, tile_crs).write(output_gtif_path)
+
+    val raster_tile: MultibandTile = rdd_with_meta.filter().where(Intersects(query_extents)).result.mask(region).stitch // Correct so far
     GeoTiff(raster_tile, raster_merged_extents, tile_crs).write(output_gtif_path)
 
-//    val raster_tile: MultibandTile = rdd_with_meta.stitch().mask(region).crop(query_extents) // Correct so far
+
+    //    val raster_tile: MultibandTile = rdd_with_meta.stitch().mask(region).crop(query_extents) // Correct so far
 //    GeoTiff(raster_tile, query_extents, tile_crs).write(output_gtif_path)
 
 //    val raster_tile: MultibandTile = rdd_with_meta.mask(region).stitch() // Does not work
