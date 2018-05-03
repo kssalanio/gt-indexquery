@@ -208,9 +208,9 @@ object Refactored {
       (tif_file,GeoTiffReader.readMultiband(tif_file.getAbsolutePath))
     }
 
-    spark_s.sparkContext.parallelize(mband_gtiffs)
+    val mband_gtiffs_rdd = spark_s.sparkContext.parallelize(mband_gtiffs)
 
-    val merged_jsons = mband_gtiffs.map{
+    val merged_jsons = mband_gtiffs_rdd.map{
       list_item =>
         val (tif_file, gtiff) = list_item
         //TODO: Handle empty intersection (no features intersecting the tile)
