@@ -1,6 +1,6 @@
 package thesis
 
-import java.io.{BufferedWriter, File, FileWriter, PrintWriter}
+import java.io._
 import java.text.SimpleDateFormat
 import java.util.Calendar
 
@@ -12,7 +12,7 @@ import geotrellis.spark.io.kryo._
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import geotrellis.spark.tiling._
-import geotrellis.vector.{Feature, Geometry, MultiPolygon, MultiPolygonFeature, ProjectedExtent}
+import geotrellis.vector.{Extent, Feature, Geometry, MultiPolygon, MultiPolygonFeature, ProjectedExtent}
 import geotrellis.raster._
 import geotrellis.raster.resample._
 import geotrellis.raster.io.geotiff._
@@ -208,9 +208,7 @@ object Refactored {
       (tif_file,GeoTiffReader.readMultiband(tif_file.getAbsolutePath))
     }
 
-    val mband_gtiffs_rdd = spark_s.sparkContext.parallelize(mband_gtiffs)
-
-    val merged_jsons = mband_gtiffs_rdd.map{
+    val merged_jsons = mband_gtiffs.map{
       list_item =>
         val (tif_file, gtiff) = list_item
         //TODO: Handle empty intersection (no features intersecting the tile)
@@ -226,6 +224,47 @@ object Refactored {
         merged_map_json
     }
   }
+
+  def createTileMetadata_2(dataset_uid :String, tile_dir_path: String, metadata_shp_filepath :String)(implicit spark_s : SparkSession) = {
+    val json_dir : File = new File(os_path_join(tile_dir_path,"json"))
+    if (!json_dir.exists) json_dir.mkdir
+
+
+    val metadata_fts : Seq[MultiPolygonFeature[Map[String,Object]]] = ShapeFileReader.readMultiPolygonFeatures(metadata_shp_filepath)
+    val metadata_fts_rdd = spark_s.sparkContext.parallelize(metadata_fts, RDD_PARTS)
+
+    val gtiff_files = spark_s.sparkContext.parallelize(getListOfFiles(tile_dir_path,List[String]("tif")), RDD_PARTS)
+
+    val gtif_name_extent_rdd : RDD[(String, String, Extent)] = gtiff_files.map {
+      tif_file =>
+
+        // Write tile_file_name, tile_hex_code and tile_dataset_uid first
+        val tif_file_name = tif_file.getName
+        val tif_file_path = tif_file.getPath
+        val hex_code = tif_file_name.split("_")(0)
+        val tile_code_map = Map[String, Object]("tile_file_name" -> tif_file_name,"tile_hex_code" -> hex_code, "tile_dataset_uid" -> dataset_uid)
+        new PrintWriter(
+          os_path_join(json_dir.getAbsolutePath, tif_file.getName.replaceAll("\\.[^.]*$", "") + ".json"))
+        {
+          write(Json(DefaultFormats).write(tile_code_map) + "\n"); close }
+        (tif_file_name, tif_file_path, GeoTiffReader.readMultiband(tif_file.getPath).extent)
+    }
+
+    val joined_rdd = metadata_fts_rdd.cartesian(gtif_name_extent_rdd).filter{
+      case (metadata_ft,gtif_name_path_extent) =>
+        metadata_ft.geom.intersects(gtif_name_path_extent._3) }.map{
+      case (metadata_ft,gtif_name_path_extent) =>
+        (gtif_name_path_extent._1, metadata_ft.data)
+    }.groupByKey().collect().foreach {
+      case (tif_file_name, meta_maps) =>
+        val metadata_linestring = Json(DefaultFormats).write(meta_maps).filterNot(c => c  == '[' || c == ']').replaceAll("\\},\\{", "\\}\n\\{")
+        val json_file_path = os_path_join(json_dir.getAbsolutePath, tif_file_name.replaceAll("\\.[^.]*$", "") + ".json")
+        val json_writer = new FileWriter(json_file_path, true)
+        json_writer.write(metadata_linestring+"\n")
+        json_writer.close()
+    }
+  }
+
 
   def createGeoTiffMetadataJSON(tif_filename:String, tif_file: MultibandGeoTiff, metadata_fts_rdd: RDD[MultiPolygonFeature[Map[String, Object]]])(implicit spark_s : SparkSession): String = {
     val result_rdd : RDD[MultiPolygonFeature[Map[String,Object]]] = metadata_fts_rdd.filter(
@@ -261,7 +300,7 @@ object Refactored {
     }
   }
 
-  def createGeoTiffMetadataJSON_2(dataset_uid :String,tif_filename:String, tif_file: MultibandGeoTiff, metadata_fts_rdd: RDD[MultiPolygonFeature[Map[String, Object]]])(implicit spark_s : SparkSession): String = {
+  def createGeoTiffMetadataJSON_withDSUid(dataset_uid :String,tif_filename:String, tif_file: MultibandGeoTiff, metadata_fts_rdd: RDD[MultiPolygonFeature[Map[String, Object]]])(implicit spark_s : SparkSession): String = {
     val result_rdd : RDD[MultiPolygonFeature[Map[String,Object]]] = metadata_fts_rdd.filter(
       ft => ft.geom.intersects(tif_file.extent)
     )

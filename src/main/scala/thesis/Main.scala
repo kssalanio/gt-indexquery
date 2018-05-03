@@ -128,6 +128,7 @@ object Main{
       .config("spark.ui.enabled", "true")
       .config("spark.executor.memory",   "14g")
       .getOrCreate()
+    val run_reps = args(1).toInt
 
     try {
       /**
@@ -136,14 +137,13 @@ object Main{
       println("ARGUMENTS:")
       pprint.pprintln(args)
 
-      val run_reps = args(1).toInt
       args(0) match {
         case "csv" => run_csv_tests(
           run_reps, args(2))(sparkSession)
         case "tile_raster" => run_spatial_key_tests(
           run_reps, args(2),args(3))(sparkSession)
         case "map_meta" => run_map_metadata(
-          run_reps, args(2),args(3))(sparkSession)
+          run_reps, args(2),args(3),args(4))(sparkSession)
         case "inverted_idx" => run_create_inverted_index(
           run_reps, args(2))(sparkSession)
         case "query_shp" => run_query_tiles(
@@ -164,7 +164,9 @@ object Main{
     } finally {
 //      sc.stop()
       println("\n\nHit [ENTER] to exit.\n\n")
-      //StdIn.readLine()
+      if(run_reps == 1){
+        StdIn.readLine()
+      }
       sparkSession.stop()
     }
   }
@@ -325,11 +327,12 @@ object Main{
     }
   }
 
-  def run_map_metadata(run_reps :Int, tile_dir_path: String, metadata_shp_filepath: String)(implicit spark_s: SparkSession): Unit ={
+  def run_map_metadata(run_reps :Int, dataset_uid: String, tile_dir_path: String, metadata_shp_filepath: String)(implicit spark_s: SparkSession): Unit ={
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
     for( a <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
-        createTileMetadata(tile_dir_path, metadata_shp_filepath)
+//        createTileMetadata(tile_dir_path, metadata_shp_filepath)
+        createTileMetadata_2(dataset_uid, tile_dir_path, metadata_shp_filepath)
       )
     }
   }
