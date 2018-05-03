@@ -208,6 +208,8 @@ object Refactored {
       (tif_file,GeoTiffReader.readMultiband(tif_file.getAbsolutePath))
     }
 
+    spark_s.sparkContext.parallelize(mband_gtiffs)
+
     val merged_jsons = mband_gtiffs.map{
       list_item =>
         val (tif_file, gtiff) = list_item
@@ -223,8 +225,6 @@ object Refactored {
           write(merged_map_json); close }
         merged_map_json
     }
-    println(merged_jsons)
-    pprint.pprintln(merged_jsons)
   }
 
   def createGeoTiffMetadataJSON(tif_filename:String, tif_file: MultibandGeoTiff, metadata_fts_rdd: RDD[MultiPolygonFeature[Map[String, Object]]])(implicit spark_s : SparkSession): String = {
