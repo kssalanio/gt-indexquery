@@ -164,7 +164,7 @@ object Main{
     } finally {
 //      sc.stop()
       println("\n\nHit [ENTER] to exit.\n\n")
-      StdIn.readLine()
+      //StdIn.readLine()
       sparkSession.stop()
     }
   }
@@ -338,7 +338,8 @@ object Main{
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
     for( run_rep <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
-        createInvertedIndex(tile_dir_path, run_rep)
+//        createInvertedIndex(tile_dir_path, run_rep)
+        createInvertedIndex_2(tile_dir_path, run_rep)
       )
     }
   }

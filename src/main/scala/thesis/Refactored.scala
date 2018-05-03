@@ -208,7 +208,7 @@ object Refactored {
       (tif_file,GeoTiffReader.readMultiband(tif_file.getAbsolutePath))
     }
 
-    mband_gtiffs.map{
+    val merged_jsons = mband_gtiffs.map{
       list_item =>
         val (tif_file, gtiff) = list_item
         //TODO: Handle empty intersection (no features intersecting the tile)
@@ -221,7 +221,10 @@ object Refactored {
           os_path_join(json_dir.getAbsolutePath, tif_file.getName.replaceAll("\\.[^.]*$", "") + ".json"))
         {
           write(merged_map_json); close }
+        merged_map_json
     }
+    println(merged_jsons)
+    pprint.pprintln(merged_jsons)
   }
 
   def createGeoTiffMetadataJSON(tif_filename:String, tif_file: MultibandGeoTiff, metadata_fts_rdd: RDD[MultiPolygonFeature[Map[String, Object]]])(implicit spark_s : SparkSession): String = {
@@ -258,12 +261,46 @@ object Refactored {
     }
   }
 
+  def createGeoTiffMetadataJSON_2(dataset_uid :String,tif_filename:String, tif_file: MultibandGeoTiff, metadata_fts_rdd: RDD[MultiPolygonFeature[Map[String, Object]]])(implicit spark_s : SparkSession): String = {
+    val result_rdd : RDD[MultiPolygonFeature[Map[String,Object]]] = metadata_fts_rdd.filter(
+      ft => ft.geom.intersects(tif_file.extent)
+    )
+    val ft_count =result_rdd.count()
+
+    val hex_code = tif_filename.split("_")(0)
+    val tile_code_map = Map[String, Object]("tile_file_name" -> tif_filename,"tile_code" -> hex_code, "tile_dataset_uid" -> dataset_uid)
+
+    if(ft_count >= 1) {
+      Json(DefaultFormats).write(tile_code_map) + ",\n" +
+        result_rdd.aggregate[String]("")(
+          {(acc, cur_ft) =>   // Combining accumulator and element
+            val map_json = Json(DefaultFormats).write(cur_ft.data)
+            if(acc.length > 0 && map_json.length > 0){
+              acc + ",\n" + map_json
+            }else{
+              acc + map_json
+            }
+          },
+          {(acc1, acc2) =>  // Combining accumulator and another accumulator
+            if(acc1.length > 0 && acc2.length > 0) {
+              acc1 + ",\n" + acc2
+            }else{
+              acc1 + acc2
+            }
+          }
+        )
+    }else{
+      Json(DefaultFormats).write(tile_code_map) + ",\n" +
+        Json(DefaultFormats).write(Map[String, Object]())
+    }
+  }
+
 //  def jsonStrToMap(jsonStr: String): Map[String, Any] = {
 //    Json(DefaultFormats).parse(jsonStr).extract[Map[String, Any]]
 //  }
 
   def createInvertedIndex(tile_dir_path: String, run_rep: Int)(implicit spark_s : SparkSession)={
-    val json_files = getListOfFiles(tile_dir_path,List[String]("json"))
+    //val json_files = getListOfFiles(tile_dir_path,List[String]("json"))
     val json_files_rdd = spark_s.sparkContext.wholeTextFiles(tile_dir_path)
     json_files_rdd.flatMap {
       case (path, text) =>
@@ -282,6 +319,37 @@ object Refactored {
       case ((word, path), n) => (word, (path, n))
     }
     .groupByKey
+    .mapValues(iterator => iterator.mkString(", "))
+    .saveAsTextFile(tile_dir_path+"/inverted_idx_"+run_rep)
+  }
+
+  def createInvertedIndex_2(tile_dir_path: String, run_rep: Int)(implicit spark_s : SparkSession)={
+    //val json_files = getListOfFiles(tile_dir_path,List[String]("json"))
+    val json_files_rdd = spark_s.sparkContext.wholeTextFiles(tile_dir_path)
+    json_files_rdd.flatMap {
+      case (path, text) => {
+        val (first_line, other_lines) = text.trim.split("\n").splitAt(1)
+        val fl_tokens = first_line(0).filterNot(c => c  == '{' || c == '}' | c == '"').split(",").map {
+          text_string =>
+            text_string.filterNot(c => c == '"').split(":")
+        }
+//        println("FL_TOKENS: ")
+//        pprint.pprintln(fl_tokens)
+
+        val tile_code = fl_tokens(1)(1)
+        val tile_dataset_uid = fl_tokens(2)(1)
+        other_lines.flatMap{
+          text_line =>
+            text_line.trim.filterNot(c => c  == '{' || c == '}').split("\",\"").map{
+              text_string =>
+                text_string.filterNot(c => c  == '"').split(":")(0)
+            }.map(keyword => (keyword, keyword, path, tile_code, tile_dataset_uid))
+
+        }
+      }
+    }.map {
+        case (keyword, keyword_path, path, tile_code, tile_dataset_uid) => (keyword, (keyword_path, path, tile_code, tile_dataset_uid))
+    }.groupByKey
     .mapValues(iterator => iterator.mkString(", "))
     .saveAsTextFile(tile_dir_path+"/inverted_idx_"+run_rep)
   }
