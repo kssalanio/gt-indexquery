@@ -333,8 +333,8 @@ object Main{
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
     for( a <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
-//        createTileMetadata(tile_dir_path, metadata_shp_filepath)
-        createTileMetadata_2(dataset_uid, tile_dir_path, metadata_shp_filepath)
+        createTileMetadata(dataset_uid, tile_dir_path, metadata_shp_filepath)
+//        createTileMetadata_2(dataset_uid, tile_dir_path, metadata_shp_filepath)
       )
     }
   }
