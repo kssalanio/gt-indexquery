@@ -92,7 +92,6 @@ object Main{
       //.set("spark.serializer.objectStreamReset",	"100")
   }
 
-
   def main(args: Array[String]): Unit = {
     //Initialize
     println(System.getProperty("java.library.path"))
@@ -150,6 +149,9 @@ object Main{
           run_reps, args(2),args(3),args(4))(sparkSession)
         case "cmp_meta" => run_cmp_meta(
           run_reps, args(2),args(3))(sparkSession)
+        case "simple" => run_simple_read_tile_query(
+          //simpleReadTileQuery(run_rep,src_raster_file_path, tile_out_path, meta_shp_path, qry_shp_path, output_gtif_path)
+          run_reps, args(2),args(3),args(4),args(5),args(6))(sparkSession)
         case "read_tiles" => run_tile_reader_tests(
           run_reps, args(2),args(3))(sparkSession)
         case "run_prelim" => run_prelim_tiling_task(
@@ -375,6 +377,14 @@ object Main{
       )
     }
   }
+
+  def run_simple_read_tile_query(run_reps: Int, src_raster_file_path: String, tile_out_path: String, meta_shp_path : String, qry_shp_path : String, output_gtif_path : String )
+                                (implicit spark_s: SparkSession) = {
+    for( run_rep <- 1 to run_reps) {
+      simpleReadTileQuery(run_rep,src_raster_file_path, tile_out_path, meta_shp_path, qry_shp_path, output_gtif_path)
+    }
+  }
+
 }
 
 object Holder extends Serializable {

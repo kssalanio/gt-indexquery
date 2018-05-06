@@ -225,6 +225,7 @@ object Refactored {
     }
   }
 
+
   def createTileMetadata_2(dataset_uid :String, tile_dir_path: String, metadata_shp_filepath :String)(implicit spark_s : SparkSession) = {
     val json_dir : File = new File(os_path_join(tile_dir_path,"json"))
     if (!json_dir.exists) json_dir.mkdir
@@ -264,6 +265,41 @@ object Refactored {
         json_writer.close()
     }
   }
+
+  def createTileMetadata_3(dataset_uid :String, tile_dir_path: String, metadata_shp_filepath :String)(implicit spark_s : SparkSession) = {
+    val metadata_fts : Seq[MultiPolygonFeature[Map[String,Object]]] = ShapeFileReader.readMultiPolygonFeatures(metadata_shp_filepath)
+    val metadata_fts_rdd : RDD[MultiPolygonFeature[Map[String,Object]]]= spark_s.sparkContext.parallelize(metadata_fts, RDD_PARTS)
+
+    val gtiff_files = getListOfFiles(tile_dir_path,List[String]("tif"))
+    val mband_gtiffs : List[(File, MultibandGeoTiff)] = gtiff_files.map { tif_file =>
+      (tif_file,GeoTiffReader.readMultiband(tif_file.getAbsolutePath))
+    }
+
+    val merged_jsons = mband_gtiffs.map{
+      list_item =>
+        val (tif_file, gtiff) = list_item
+
+        /**
+          * //TODO: Optimize and prevent inefficient cartesion join
+          */
+        val merged_map_json : String = createGeoTiffMetadataJSON(tif_file.getName, gtiff, metadata_fts_rdd)
+
+        val result_rdd : RDD[MultiPolygonFeature[Map[String,Object]]] = metadata_fts_rdd.filter(
+          ft => ft.geom.intersects(gtiff.extent)
+        )
+
+        val json_dir : File = new File(os_path_join(tile_dir_path,"json"))
+        if (!json_dir.exists) json_dir.mkdir
+
+        new PrintWriter(
+          //          tif_file.getAbsoluteFile.toString.replaceAll("\\.[^.]*$", "") + ".json")
+          os_path_join(json_dir.getAbsolutePath, tif_file.getName.replaceAll("\\.[^.]*$", "") + ".json"))
+        {
+          write(merged_map_json); close }
+        merged_map_json
+    }
+  }
+
 
 
   def createGeoTiffMetadataJSON(tif_filename:String, tif_file: MultibandGeoTiff, metadata_fts_rdd: RDD[MultiPolygonFeature[Map[String, Object]]])(implicit spark_s : SparkSession): String = {
