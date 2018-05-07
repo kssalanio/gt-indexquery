@@ -16,9 +16,14 @@ done
 ### MAP META ###
 for (( i=${ISTART}; i<=${IEND}; i+=${INCREM}))
 do
-   CMD_STR="./sbt \"run map_meta ${REPS} /mnt/extdisk/dump/tiles/victorias_merge_$i /home/spark/coverage/mindoro_coverage.shp\" &> logs/2_map_meta/victorias_${i}_run_${REPS}.log"
-   echo "Running: $CMD_STR"
-   eval $CMD_STR
+    CMD_STR="./sbt \"run map_meta ${REPS} 000000${i} /mnt/extdisk/dump/tiles/victorias_merge_$i /home/spark/coverage/mindoro_coverage.shp\" &> logs/2_map_meta/victorias_${i}_run_${REPS}.log"
+    if [ $i -lt 10 ]
+    then
+        CMD_STR="./sbt \"run map_meta ${REPS} 0000000${i} /mnt/extdisk/dump/tiles/victorias_merge_$i /home/spark/coverage/mindoro_coverage.shp\" &> logs/2_map_meta/victorias_${i}_run_${REPS}.log"
+    fi
+
+    echo "Running: $CMD_STR"
+    eval $CMD_STR
 done
 
 ### INVERTED INDEX ###
