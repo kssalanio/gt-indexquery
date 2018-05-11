@@ -139,7 +139,7 @@ object Main{
       args(0) match {
         case "csv" => run_csv_tests(
           run_reps, args(2))(sparkSession)
-        case "tile_raster" => run_spatial_key_tests(
+        case "tile_raster" => run_tile_geotiff(
           run_reps, args(2),args(3))(sparkSession)
         case "map_meta" => run_map_metadata(
           run_reps, args(2),args(3),args(4))(sparkSession)
@@ -306,7 +306,7 @@ object Main{
     println("\n\n>> END <<\n\n")
   }
 
-  //def run_spatial_key_tests(gtiff_raster_path : String, output_dir_path: String)(implicit sc: SparkContext): Unit ={
+  //def run_tile_geotiff(gtiff_raster_path : String, output_dir_path: String)(implicit sc: SparkContext): Unit ={
   def run_prelim_tiling_task(run_reps :Int, gtiff_raster_path : String, output_dir_path: String)(implicit spark_s: SparkSession): Unit = {
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
     val guimaras_raster_path = "/home/spark/datasets/SAR/geonode_sar_guimaras.tif"
@@ -314,7 +314,7 @@ object Main{
       readGeotiffAndTile(guimaras_raster_path, output_dir_path)(spark_s.sparkContext))
   }
 
-  def run_spatial_key_tests(run_reps :Int, gtiff_raster_path : String, output_dir_path: String)(implicit spark_s: SparkSession): Unit ={
+  def run_tile_geotiff(run_reps :Int, gtiff_raster_path : String, output_dir_path: String)(implicit spark_s: SparkSession): Unit ={
       val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
 //    val time_idx = time{
 //      readGeotiffAndTile(gtiff_raster_path, output_dir_path)

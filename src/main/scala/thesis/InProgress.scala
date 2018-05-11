@@ -20,6 +20,7 @@ import geotrellis.vector.io._
 import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.util.SizeEstimator
 import org.geotools.data.shapefile.ShapefileDumper
 import org.geotools.feature.DefaultFeatureCollection
 import org.json4s.DefaultFormats
@@ -194,7 +195,7 @@ object InProgress {
         reprojected_rdd.keys.max()._2)
     }
 
-    val result = reprojected_rdd
+    val sfc_indexed_rdd: RDD[(SpatialKey, Extent)] = reprojected_rdd
       // Filter out negative keys first to prevent errors
       .filter(x => (x._1._1 >= 0) && (x._1._2 >= 0) )
       .map{ tup =>
@@ -214,9 +215,9 @@ object InProgress {
       //TODO: Create Vector Layer outline of tiles using extents (reduce step)
     }
     println("Tiled RDD Items: " + tiled_rdd.count())
-    println("Result RDD Items: " + result.count())
+    println("Result RDD Items: " + sfc_indexed_rdd.count())
     println("Hilbert Dimensions: " + reprojected_rdd.keys.max())
-    pprint.pprintln(result)
+    pprint.pprintln(sfc_indexed_rdd)
   }
 
   def simpleReadTileQuery(run_rep: Int, src_raster_file_path: String, tile_out_path: String, meta_shp_path : String, qry_shp_path : String, output_gtif_path : String )
@@ -475,12 +476,6 @@ object InProgress {
       .write(output_gtif_path)
   }
 
-  def readTiles_v2(tile_dir_path: String, output_gtif_path: String)(implicit sc: SparkContext)={
-    // Create Sequence of Geotiffs
-    val tif_file_list = getListOfFiles(tile_dir_path,List[String]("tif"))
-    val test_rdd_tiles: RDD[(ProjectedExtent, MultibandTile)] = sc.hadoopMultibandGeoTiffRDD(tile_dir_path)
-    println("Num Tiles: "+test_rdd_tiles.count())
-  }
 
   def queryTiles(tile_dir_path: String, query_shp: String, output_gtif_path: String)(implicit spark_s: SparkSession)= {
     // Create Sequence of Geotiffs
@@ -490,6 +485,8 @@ object InProgress {
       (tif_file.getName, GeoTiffReader.readMultiband(tif_file.getAbsolutePath)) //.raster.tile)
     }
 
+    println("sizeEstimate - gtif_list: "+SizeEstimator.estimate(gtif_list).toString)
+
     val tile_crs: geotrellis.proj4.CRS = gtif_list(0)._2.crs
 
     // Get x,y resolution from list of tile file names
@@ -498,6 +495,8 @@ object InProgress {
         tif_file.getName.split('.')(0).split('_').drop(1).map(_.toInt)
     }
     val xy_rdd = sc.parallelize(xy_list)
+
+    println("sizeEstimate - xy_rdd: "+SizeEstimator.estimate(xy_list).toString)
 
     val min_max_x = xy_rdd.aggregate[(Int,Int)](xy_list(0)(0),xy_list(0)(0))(
         { (acc, item) =>   // Combining accumulator and element
@@ -572,7 +571,7 @@ object InProgress {
 
     // Create MultibandLayerRDD[K,V] with Metadata from RDD
     val mtl_rdd : RDD[(SpatialKey,MultibandTile)] = sc.parallelize(mtl_seq)
-
+    println("sizeEstimate - mtl_rdd: "+SizeEstimator.estimate(mtl_rdd).toString)
 
     //TODO: Ongoing here
     val recreated_metadata = TileLayerMetadata(
@@ -591,6 +590,7 @@ object InProgress {
       hilbert_index.keyBounds)
     val rdd_with_meta = ContextRDD(mtl_rdd, recreated_metadata)
     println("CREATED METADATA: ")
+    println("sizeEstimate - rdd_with_meta: "+SizeEstimator.estimate(rdd_with_meta).toString)
     pprint.pprintln(recreated_metadata)
 
     //Stitches the raster together
@@ -601,13 +601,18 @@ object InProgress {
     val region: MultiPolygon = features(0).geom
     val query_extents = features(0).envelope
     val attribute_table = features(0).data
+    println("sizeEstimate - features: "+SizeEstimator.estimate(features).toString)
 
-//    val raster_tile: MultibandTile = rdd_with_meta.stitch().mask(region) // Correct so far
+
+    //    val raster_tile: MultibandTile = rdd_with_meta.stitch().mask(region) // Correct so far
 //    GeoTiff(raster_tile, raster_merged_extents, tile_crs).write(output_gtif_path)
     val filtered_rdd = rdd_with_meta.filter().where(Intersects(query_extents)).result
 
     val raster_tile: Raster[MultibandTile] = filtered_rdd.mask(region).stitch // Correct so far
+
     println("EXECUTOR MEMORY: "+sc.getExecutorMemoryStatus)
+    println("sizeEstimate - raster_tile: "+SizeEstimator.estimate(raster_tile).toString)
+
     GeoTiff(raster_tile, tile_crs).write(output_gtif_path)
 
     //    val raster_tile: MultibandTile = rdd_with_meta.stitch().mask(region).crop(query_extents) // Correct so far
