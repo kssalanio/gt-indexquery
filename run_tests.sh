@@ -17,7 +17,7 @@ done
 ### MAP META ###
 for (( i=${ISTART}; i<=${IEND}; i+=${INCREM}))
 do
-    CMD_STR="./sbt \"run map_meta ${REPS} 000000${i} /mnt/extdisk/dump/tiles/victorias_merge_$i /home/spark/coverage/mindoro_coverage.shp\" &> logs/2_map_meta/victorias_${i}_run_${REPS}.log"
+    CMD_STR="./sbt \"run map_meta ${REPS} 000000${i} /mnt/extdisk/dump/tiles/victorias_merge_$i /home/spark/coverage/mindoro_coverage.shp\" &> logs/2_map_meta/victorias_${i}_${SFC_INDEX}_run_${REPS}.log"
     if [ $i -lt 10 ]
     then
         CMD_STR="./sbt \"run map_meta ${REPS} 0000000${i} /mnt/extdisk/dump/tiles/victorias_merge_$i /home/spark/coverage/mindoro_coverage.shp\" &> logs/2_map_meta/victorias_${i}_${SFC_INDEX}_run_${REPS}.log"
