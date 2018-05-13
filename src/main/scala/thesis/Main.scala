@@ -153,7 +153,7 @@ object Main{
           run_reps, args(2),args(3),args(4),args(5))(sparkSession)
 
         case "cmp_meta" => run_cmp_meta(
-          run_reps, args(2),args(3))(sparkSession)
+          run_reps, args(2),args(3),args(4))(sparkSession)
 
         case "simple" => run_simple_read_tile_query(
           //simpleReadTileQuery(run_rep,src_raster_file_path, tile_out_path, meta_shp_path, qry_shp_path, output_gtif_path)
@@ -164,7 +164,7 @@ object Main{
 
         case "run_prelim" => run_prelim_tiling_task(
           run_reps, args(2),args(3))(sparkSession)
-          
+
         case _ => println("ERROR: Invalid first CLI argument")
       }
       println(">>> END OF RUN <<<")
@@ -378,11 +378,11 @@ object Main{
     }
   }
 
-  def run_cmp_meta(run_reps :Int, tile_dir_path: String, merged_tif_path: String) (implicit spark_s: SparkSession) = {
+  def run_cmp_meta(run_reps :Int, tile_dir_path: String, merged_tif_path: String, sfc_index_label: String) (implicit spark_s: SparkSession) = {
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
     for( run_rep <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
-        compareMetadata(tile_dir_path, merged_tif_path)
+        compareMetadata(tile_dir_path, merged_tif_path, sfc_index_label)
       )
     }
   }

@@ -458,15 +458,15 @@ object InProgress {
 
     sfc_index_label match {
       case Constants.SFC_LABEL_HILBERT => {
-        return SpatialKey(Z2.combine(long_index), Z2.combine(long_index>>1))
+        return SpatialKey(Z2.combine(long_index)+1, (Z2.combine(long_index>>1))+1)
       }
       case Constants.SFC_LABEL_ZORDER => {
         val chc = {
           val dimensionSpec =
             new MultiDimensionalSpec(
               List(
-                x_resolution,
-                y_resolution
+                x_resolution+1,
+                y_resolution+1
               ).map(new java.lang.Integer(_)).asJava
             )
 
@@ -474,8 +474,8 @@ object InProgress {
         }
         val bit_vectors =
           Array(
-            BitVectorFactories.OPTIMAL.apply(x_resolution),
-            BitVectorFactories.OPTIMAL.apply(y_resolution)
+            BitVectorFactories.OPTIMAL.apply(x_resolution+1),
+            BitVectorFactories.OPTIMAL.apply(y_resolution+1)
           )
         val long_var = java.lang.Long.parseLong(hex_string, 16)
         val hilbertBitVector = BitVectorFactories.OPTIMAL.apply(chc.getSpec.sumBitsPerDimension)
@@ -741,7 +741,7 @@ object InProgress {
 
   }
 
-  def compareMetadata(tile_dir_path :String, merged_tif_path:String)(implicit spark_s: SparkSession)={
+  def compareMetadata(tile_dir_path :String, merged_tif_path:String, sfc_index_label: String)(implicit spark_s: SparkSession)={
     // Create Sequence of Geotiffs
     implicit val sc = spark_s.sparkContext
     val tif_file_list = getListOfFiles(tile_dir_path, List[String]("tif"))
