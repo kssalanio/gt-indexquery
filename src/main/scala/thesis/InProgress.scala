@@ -14,7 +14,7 @@ import geotrellis.spark.io.Intersects
 import geotrellis.spark.io.hadoop._
 import geotrellis.spark.io.index.KeyIndex
 import geotrellis.spark.io.index.hilbert._
-import geotrellis.spark.io.index.zcurve.ZSpatialKeyIndex
+import geotrellis.spark.io.index.zcurve.{Z2, ZSpatialKeyIndex}
 import geotrellis.spark.tiling._
 import geotrellis.util._
 import geotrellis.vector._
@@ -145,7 +145,7 @@ object InProgress {
   def createSFCIndex(sfc_index_label: String, x_resolution: Int, y_resolution: Int): KeyIndex[SpatialKey] = {
 
     sfc_index_label match {
-      case "hilbert" => {
+      case Constants.SFC_LABEL_HILBERT => {
         val max_int = (math.pow(2, 32) - 1).toInt
         //new HilbertSpatialKeyIndex(KeyBounds(SpatialKey(0, 0), SpatialKey(max, max)), 31, 31)
         println("sfc_index: HILBERT : "+sfc_index_label)
@@ -158,7 +158,7 @@ object InProgress {
           x_resolution,
           y_resolution)
       }
-      case "zorder" => {
+      case Constants.SFC_LABEL_ZORDER => {
         val max_int = (math.pow(2, 32) - 1).toInt
         println("sfc_index: ZORDER : "+sfc_index_label)
 
@@ -453,7 +453,48 @@ object InProgress {
       write(meta_json_string + "\n"); close }
   }
 
-  def invertHilbertIndex(hex_string :String, xResolution: Int, yResolution: Int): Array[BitVector] = {
+  def invertHexIndex(hex_string :String, x_resolution: Int, y_resolution: Int, sfc_index_label: String): SpatialKey = {
+    val long_index = java.lang.Long.parseLong(hex_string, 16)
+
+    sfc_index_label match {
+      case Constants.SFC_LABEL_HILBERT => {
+        return SpatialKey(Z2.combine(long_index), Z2.combine(long_index>>1))
+      }
+      case Constants.SFC_LABEL_ZORDER => {
+        val chc = {
+          val dimensionSpec =
+            new MultiDimensionalSpec(
+              List(
+                x_resolution,
+                y_resolution
+              ).map(new java.lang.Integer(_)).asJava
+            )
+
+          new CompactHilbertCurve(dimensionSpec)
+        }
+        val bit_vectors =
+          Array(
+            BitVectorFactories.OPTIMAL.apply(x_resolution),
+            BitVectorFactories.OPTIMAL.apply(y_resolution)
+          )
+        val long_var = java.lang.Long.parseLong(hex_string, 16)
+        val hilbertBitVector = BitVectorFactories.OPTIMAL.apply(chc.getSpec.sumBitsPerDimension)
+        hilbertBitVector.copyFrom(long_var)
+        chc.indexInverse(hilbertBitVector, bit_vectors)
+        return SpatialKey(bit_vectors(0).toLong.toInt ,bit_vectors(1).toLong.toInt)
+      }
+    }
+
+  }
+
+  /**
+    * TODO: create invert function for Z Order index
+    * @param hex_string
+    * @param xResolution
+    * @param yResolution
+    * @return
+    */
+  def invertHilbertIndex_refactor(hex_string :String, xResolution: Int, yResolution: Int): Array[BitVector] = {
     val chc = {
       val dimensionSpec =
         new MultiDimensionalSpec(
@@ -478,7 +519,7 @@ object InProgress {
   }
 
 
-  def readTiles(tile_dir_path: String, output_gtif_path: String)(implicit spark_s: SparkSession)={
+  def readTiles(tile_dir_path: String, output_gtif_path: String, sfc_index_label: String)(implicit spark_s: SparkSession)={
     // Create Sequence of Geotiffs
     implicit val sc = spark_s.sparkContext
     val tif_file_list = getListOfFiles(tile_dir_path,List[String]("tif"))
@@ -520,26 +561,25 @@ object InProgress {
         val hex_hilbert = filename.split("_")(0)
         val mband_gtif: MultibandGeoTiff = list_item._2
         //TODO:compute actual spatial key
-        val bitvectors = invertHilbertIndex(hex_hilbert,xResolution,yResolution)
 
+        val decoded_spatial_key = invertHexIndex(hex_hilbert,xResolution,yResolution, sfc_index_label)
         pprint.pprintln(filename + " | "
-          + bitvectors(0).toLong + " , "+ bitvectors(1).toLong
+          + decoded_spatial_key._1 + " , "+ decoded_spatial_key._2
           + " | " + mband_gtif.extent)
 
-        val spatialKey = SpatialKey(bitvectors(0).toLong.toInt,bitvectors(1).toLong.toInt)
         val mband_tile = mband_gtif.raster.tile
 
-        if( spatialKey.equals(hilbert_index.keyBounds.minKey)){
+        if( decoded_spatial_key.equals(hilbert_index.keyBounds.minKey)){
           x_vals += mband_gtif.extent.xmin
           y_vals += mband_gtif.extent.ymax
         }
 
-        if( spatialKey.equals(hilbert_index.keyBounds.maxKey)){
+        if( decoded_spatial_key.equals(hilbert_index.keyBounds.maxKey)){
           x_vals += mband_gtif.extent.xmax
           y_vals += mband_gtif.extent.ymin
         }
 
-        (spatialKey,mband_tile)
+        (decoded_spatial_key,mband_tile)
     }
 
     val extents = new Extent(x_vals.min, y_vals.min, x_vals.max, y_vals.max)
@@ -619,30 +659,29 @@ object InProgress {
         val filename : String  = list_item._1
         val hex_hilbert = filename.split("_")(0)
         val mband_gtif: MultibandGeoTiff = list_item._2
-        val bitvectors = invertHilbertIndex(hex_hilbert,x_resolution,y_resolution)
-
+        
 //        pprint.pprintln(filename + " | "
 //          + bitvectors(0).toLong + " , "+ bitvectors(1).toLong
 //          + " | " + mband_gtif.extent)
 
-        val spatialKey = SpatialKey(bitvectors(0).toLong.toInt,bitvectors(1).toLong.toInt)
+        val decoded_spatial_key = invertHexIndex(hex_hilbert,x_resolution,y_resolution, sfc_index_label)
         val mband_tile = mband_gtif.raster.tile
 
-        if( spatialKey.equals(sfc_index.keyBounds.minKey)){
+        if( decoded_spatial_key.equals(sfc_index.keyBounds.minKey)){
           x_vals += mband_gtif.extent.xmin
           x_vals += mband_gtif.extent.xmax
           y_vals += mband_gtif.extent.ymin
           y_vals += mband_gtif.extent.ymax
         }
 
-        if( spatialKey.equals(sfc_index.keyBounds.maxKey)){
+        if( decoded_spatial_key.equals(sfc_index.keyBounds.maxKey)){
           x_vals += mband_gtif.extent.xmin
           x_vals += mband_gtif.extent.xmax
           y_vals += mband_gtif.extent.ymin
           y_vals += mband_gtif.extent.ymax
         }
 
-        (spatialKey,mband_tile)
+        (decoded_spatial_key,mband_tile)
     }
 
     val raster_merged_extents = new Extent(x_vals.min, y_vals.min, x_vals.max, y_vals.max)
@@ -761,30 +800,28 @@ object InProgress {
         val filename : String  = list_item._1
         val hex_hilbert = filename.split("_")(0)
         val mband_gtif: MultibandGeoTiff = list_item._2
-        val bitvectors = invertHilbertIndex(hex_hilbert,xResolution,yResolution)
 
-        //        pprint.pprintln(filename + " | "
-        //          + bitvectors(0).toLong + " , "+ bitvectors(1).toLong
-        //          + " | " + mband_gtif.extent)
-
-        val spatialKey = SpatialKey(bitvectors(0).toLong.toInt,bitvectors(1).toLong.toInt)
+        val decoded_spatial_key = invertHexIndex(hex_hilbert,xResolution,yResolution, sfc_index_label)
+        pprint.pprintln(filename + " | "
+          + decoded_spatial_key._1 + " , "+ decoded_spatial_key._2
+          + " | " + mband_gtif.extent)
         val mband_tile = mband_gtif.raster.tile
 
-        if( spatialKey.equals(hilbert_index.keyBounds.minKey)){
+        if( decoded_spatial_key.equals(hilbert_index.keyBounds.minKey)){
           x_vals += mband_gtif.extent.xmin
           x_vals += mband_gtif.extent.xmax
           y_vals += mband_gtif.extent.ymin
           y_vals += mband_gtif.extent.ymax
         }
 
-        if( spatialKey.equals(hilbert_index.keyBounds.maxKey)){
+        if( decoded_spatial_key.equals(hilbert_index.keyBounds.maxKey)){
           x_vals += mband_gtif.extent.xmin
           x_vals += mband_gtif.extent.xmax
           y_vals += mband_gtif.extent.ymin
           y_vals += mband_gtif.extent.ymax
         }
 
-        (spatialKey,mband_tile)
+        (decoded_spatial_key,mband_tile)
     }
 
     val raster_merged_extents = new Extent(x_vals.min, y_vals.min, x_vals.max, y_vals.max)

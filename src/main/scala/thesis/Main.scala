@@ -139,23 +139,32 @@ object Main{
       args(0) match {
         case "csv" => run_csv_tests(
           run_reps, args(2))(sparkSession)
+
         case "tile_raster" => run_tile_geotiff(
           run_reps, args(2),args(3),args(4))(sparkSession)
+
         case "map_meta" => run_map_metadata(
           run_reps, args(2),args(3),args(4))(sparkSession)
+
         case "inverted_idx" => run_create_inverted_index(
           run_reps, args(2))(sparkSession)
+
         case "query_shp" => run_query_tiles(
           run_reps, args(2),args(3),args(4),args(5))(sparkSession)
+
         case "cmp_meta" => run_cmp_meta(
           run_reps, args(2),args(3))(sparkSession)
+
         case "simple" => run_simple_read_tile_query(
           //simpleReadTileQuery(run_rep,src_raster_file_path, tile_out_path, meta_shp_path, qry_shp_path, output_gtif_path)
           run_reps, args(2),args(3),args(4),args(5),args(6))(sparkSession)
+
         case "read_tiles" => run_tile_reader_tests(
-          run_reps, args(2),args(3))(sparkSession)
+          run_reps, args(2),args(3),args(4))(sparkSession)
+
         case "run_prelim" => run_prelim_tiling_task(
           run_reps, args(2),args(3))(sparkSession)
+          
         case _ => println("ERROR: Invalid first CLI argument")
       }
       println(">>> END OF RUN <<<")
@@ -349,11 +358,11 @@ object Main{
     }
   }
 
-  def run_tile_reader_tests(run_reps :Int, tile_dir_path: String, output_gtif_path: String)(implicit spark_s: SparkSession) = {
+  def run_tile_reader_tests(run_reps :Int, tile_dir_path: String, output_gtif_path: String, sfc_index_label: String)(implicit spark_s: SparkSession) = {
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
     for( run_rep <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
-        readTiles(tile_dir_path, output_gtif_path)
+        readTiles(tile_dir_path, output_gtif_path, sfc_index_label)
 //    readTiles_v2(tile_dir_path, output_gtif_path)
       )
     }

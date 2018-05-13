@@ -12,4 +12,7 @@ object Constants {
   //val TESTS_CSV = "/home/spark/datasets/csv/test_params_looc.csv"
   //val TESTS_CSV = "/home/spark/datasets/csv/test_params_sablayan.csv"
   val TESTS_CSV = "/home/spark/datasets/csv/test_params_san_jose.csv"
+
+  val SFC_LABEL_HILBERT="hilbert"
+  val SFC_LABEL_ZORDER="zorder"
 }
