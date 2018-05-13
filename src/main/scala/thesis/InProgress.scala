@@ -148,38 +148,26 @@ object InProgress {
       case "hilbert" => {
         val max_int = (math.pow(2, 32) - 1).toInt
         //new HilbertSpatialKeyIndex(KeyBounds(SpatialKey(0, 0), SpatialKey(max, max)), 31, 31)
+        println("sfc_index: HILBERT : "+sfc_index_label)
 
         new HilbertSpatialKeyIndex(
           KeyBounds(
             SpatialKey(0, 0),
+            //SpatialKey(max_int, max_int)),
             SpatialKey(max_int, max_int)),
           x_resolution,
           y_resolution)
       }
       case "zorder" => {
         val max_int = (math.pow(2, 32) - 1).toInt
-        //new HilbertSpatialKeyIndex(KeyBounds(SpatialKey(0, 0), SpatialKey(max, max)), 31, 31)
+        println("sfc_index: ZORDER : "+sfc_index_label)
 
         new ZSpatialKeyIndex(
           KeyBounds(
             SpatialKey(0, 0),
-            SpatialKey(max_int, max_int)))
+            SpatialKey(x_resolution, y_resolution)))
       }
     }
-
-
-    val hilbert_index = {
-      val max_int = (math.pow(2, 32) - 1).toInt
-      //new HilbertSpatialKeyIndex(KeyBounds(SpatialKey(0, 0), SpatialKey(max, max)), 31, 31)
-
-      new HilbertSpatialKeyIndex(
-      KeyBounds(
-      SpatialKey(0, 0),
-      SpatialKey(max_int, max_int)),
-      x_resolution,
-      y_resolution)
-    }
-    return hilbert_index
   }
 
   def readGeotiffAndTile(file_path: String, output_dir_path: String, sfc_index_label: String)(implicit sc: SparkContext): Unit = {
@@ -207,6 +195,8 @@ object InProgress {
       reprojected_rdd.keys.max()._1,
       reprojected_rdd.keys.max()._2)
 
+    println("Created SFC index: "+sfc_index.toString)
+
     val sfc_indexed_rdd: RDD[(SpatialKey, Extent)] = reprojected_rdd
       // Filter out negative keys first to prevent errors
       .filter(x => (x._1._1 >= 0) && (x._1._2 >= 0) )
@@ -227,7 +217,7 @@ object InProgress {
       }
     println("Tiled RDD Items: " + tiled_rdd.count())
     println("Result RDD Items: " + sfc_indexed_rdd.count())
-    println("Hilbert Dimensions: " + reprojected_rdd.keys.max())
+    println("Space Filling Curve Dimensions: " + reprojected_rdd.keys.max())
     pprint.pprintln(sfc_indexed_rdd)
   }
 
@@ -573,7 +563,7 @@ object InProgress {
   }
 
 
-  def queryTiles(tile_dir_path: String, query_shp: String, output_gtif_path: String)(implicit spark_s: SparkSession)= {
+  def queryTiles(tile_dir_path: String, query_shp: String, output_gtif_path: String, sfc_index_label : String)(implicit spark_s: SparkSession)= {
     // Create Sequence of Geotiffs
     implicit val sc = spark_s.sparkContext
     val tif_file_list = getListOfFiles(tile_dir_path, List[String]("tif"))
@@ -616,17 +606,10 @@ object InProgress {
     println("Min/Max XY:")
     pprint.pprintln(min_max_x)
     pprint.pprintln(min_max_y)
-    val xResolution = min_max_x._2
-    val yResolution = min_max_y._2
+    val x_resolution = min_max_x._2
+    val y_resolution = min_max_y._2
 
-    val hilbert_index = {
-      val max_int = (math.pow(2, 32) - 1).toInt
-      //new HilbertSpatialKeyIndex(KeyBounds(SpatialKey(0, 0), SpatialKey(max, max)), 31, 31)
-
-      new HilbertSpatialKeyIndex(
-        KeyBounds(GridBounds(0, 0, xResolution, yResolution)),
-        xResolution, yResolution)
-    }
+    val sfc_index = createSFCIndex(sfc_index_label, x_resolution, y_resolution)
 
     val x_vals = scala.collection.mutable.ArrayBuffer.empty[Double]
     val y_vals = scala.collection.mutable.ArrayBuffer.empty[Double]
@@ -636,7 +619,7 @@ object InProgress {
         val filename : String  = list_item._1
         val hex_hilbert = filename.split("_")(0)
         val mband_gtif: MultibandGeoTiff = list_item._2
-        val bitvectors = invertHilbertIndex(hex_hilbert,xResolution,yResolution)
+        val bitvectors = invertHilbertIndex(hex_hilbert,x_resolution,y_resolution)
 
 //        pprint.pprintln(filename + " | "
 //          + bitvectors(0).toLong + " , "+ bitvectors(1).toLong
@@ -645,14 +628,14 @@ object InProgress {
         val spatialKey = SpatialKey(bitvectors(0).toLong.toInt,bitvectors(1).toLong.toInt)
         val mband_tile = mband_gtif.raster.tile
 
-        if( spatialKey.equals(hilbert_index.keyBounds.minKey)){
+        if( spatialKey.equals(sfc_index.keyBounds.minKey)){
           x_vals += mband_gtif.extent.xmin
           x_vals += mband_gtif.extent.xmax
           y_vals += mband_gtif.extent.ymin
           y_vals += mband_gtif.extent.ymax
         }
 
-        if( spatialKey.equals(hilbert_index.keyBounds.maxKey)){
+        if( spatialKey.equals(sfc_index.keyBounds.maxKey)){
           x_vals += mband_gtif.extent.xmin
           x_vals += mband_gtif.extent.xmax
           y_vals += mband_gtif.extent.ymin
@@ -669,7 +652,6 @@ object InProgress {
     val mtl_rdd : RDD[(SpatialKey,MultibandTile)] = sc.parallelize(mtl_seq)
     println("sizeEstimate - mtl_rdd: "+SizeEstimator.estimate(mtl_rdd).toString)
 
-    //TODO: Ongoing here
     val recreated_metadata = TileLayerMetadata(
       gtif_list(0)._2.cellType,
       LayoutDefinition(
@@ -683,7 +665,7 @@ object InProgress {
       ),
       raster_merged_extents,
       tile_crs,
-      hilbert_index.keyBounds)
+      sfc_index.keyBounds)
     val rdd_with_meta = ContextRDD(mtl_rdd, recreated_metadata)
     println("CREATED METADATA: ")
     println("sizeEstimate - rdd_with_meta: "+SizeEstimator.estimate(rdd_with_meta).toString)

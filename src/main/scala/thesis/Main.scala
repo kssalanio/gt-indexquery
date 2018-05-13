@@ -146,7 +146,7 @@ object Main{
         case "inverted_idx" => run_create_inverted_index(
           run_reps, args(2))(sparkSession)
         case "query_shp" => run_query_tiles(
-          run_reps, args(2),args(3),args(4))(sparkSession)
+          run_reps, args(2),args(3),args(4),args(5))(sparkSession)
         case "cmp_meta" => run_cmp_meta(
           run_reps, args(2),args(3))(sparkSession)
         case "simple" => run_simple_read_tile_query(
@@ -359,11 +359,11 @@ object Main{
     }
   }
 
-  def run_query_tiles(run_reps :Int, tile_dir_path: String, query_shp: String, output_gtif_path:String)(implicit spark_s: SparkSession) = {
+  def run_query_tiles(run_reps :Int, tile_dir_path: String, query_shp: String, output_gtif_path:String, sfc_index_label: String)(implicit spark_s: SparkSession) = {
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
     for( run_rep <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
-        queryTiles(tile_dir_path, query_shp, output_gtif_path)
+        queryTiles(tile_dir_path, query_shp, output_gtif_path, sfc_index_label)
         //    readTiles_v2(tile_dir_path, output_gtif_path)
       )
     }
