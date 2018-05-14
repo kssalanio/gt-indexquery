@@ -22,7 +22,6 @@ import org.apache.spark.sql.SparkSession
 import org.apache.spark.util.SizeEstimator
 import org.json4s.DefaultFormats
 import org.json4s.jackson.Json
-import thesis.InProgress.invertHilbertIndex
 
 import scala.reflect.ClassTag
 
