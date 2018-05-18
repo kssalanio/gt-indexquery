@@ -365,7 +365,7 @@ object Refactored {
 //    Json(DefaultFormats).parse(jsonStr).extract[Map[String, Any]]
 //  }
 
-  def createInvertedIndex(tile_dir_path: String, run_rep: Int)(implicit spark_s : SparkSession)={
+  def createInvertedIndex_old(tile_dir_path: String, run_rep: Int)(implicit spark_s : SparkSession)={
     //val json_files = getListOfFiles(tile_dir_path,List[String]("json"))
     val json_files_rdd = spark_s.sparkContext.wholeTextFiles(tile_dir_path)
     json_files_rdd.flatMap {
@@ -389,7 +389,7 @@ object Refactored {
     .saveAsTextFile(tile_dir_path+"/inverted_idx_"+run_rep)
   }
 
-  def createInvertedIndex_2(tile_dir_path: String, run_rep: Int)(implicit spark_s : SparkSession)={
+  def createInvertedIndex(tile_dir_path: String, run_rep: Int)(implicit spark_s : SparkSession)={
     //val json_files = getListOfFiles(tile_dir_path,List[String]("json"))
     val json_files_rdd = spark_s.sparkContext.wholeTextFiles(tile_dir_path)
     json_files_rdd.flatMap {
@@ -409,7 +409,7 @@ object Refactored {
             text_line.trim.filterNot(c => c  == '{' || c == '}').split("\",\"").map{
               text_string =>
                 text_string.filterNot(c => c  == '"').split(":")(0)
-            }.map(keyword => (keyword, keyword, path, tile_code, tile_dataset_uid))
+            }.map(keyword => (keyword, path, tile_code, tile_dataset_uid))
 
           /**
             * Should be:
@@ -424,10 +424,20 @@ object Refactored {
         }
       }
     }.map {
-        case (keyword, keyword_path, path, tile_code, tile_dataset_uid) => (keyword, (keyword_path, path, tile_code, tile_dataset_uid))
+        case (keyword, path, tile_code, tile_dataset_uid) => (keyword, (path, tile_code, tile_dataset_uid))
     }.groupByKey
     .mapValues(iterator => iterator.mkString(", "))
     .saveAsTextFile(tile_dir_path+"/inverted_idx_"+run_rep)
+  }
+
+  def loadInvertedIndex(invidx_dir_path: String)(implicit spark_s : SparkSession)={
+    val invidx_file = spark_s.sparkContext.textFile(invidx_dir_path)
+    val split_rdd = invidx_file.map { text_line =>
+      val tokens = text_line.split("(),")
+      pprint.pprintln(tokens)
+      tokens
+    }
+    split_rdd.foreach(println)
   }
 
 }

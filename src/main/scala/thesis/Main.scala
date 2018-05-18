@@ -165,6 +165,9 @@ object Main{
         case "run_prelim" => run_prelim_tiling_task(
           run_reps, args(2),args(3))(sparkSession)
 
+        case "invidx" => run_invidx_test(
+          run_reps, args(2))(sparkSession)
+
         case _ => println("ERROR: Invalid first CLI argument")
       }
       println(">>> END OF RUN <<<")
@@ -353,7 +356,7 @@ object Main{
     for( run_rep <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
 //        createInvertedIndex(tile_dir_path, run_rep)
-        createInvertedIndex_2(tile_dir_path, run_rep)
+        createInvertedIndex(tile_dir_path, run_rep)
       )
     }
   }
@@ -373,6 +376,16 @@ object Main{
     for( run_rep <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
         queryTiles(tile_dir_path, query_shp, output_gtif_path, sfc_index_label)
+        //    readTiles_v2(tile_dir_path, output_gtif_path)
+      )
+    }
+  }
+
+  def run_invidx_test(run_reps :Int, inverted_index_filepath: String)(implicit spark_s: SparkSession) = {
+    val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
+    for( run_rep <- 1 to run_reps) {
+      stageMetrics.runAndMeasure(
+        loadInvertedIndex(inverted_index_filepath)
         //    readTiles_v2(tile_dir_path, output_gtif_path)
       )
     }
