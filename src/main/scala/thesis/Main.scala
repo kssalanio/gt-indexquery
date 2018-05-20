@@ -16,7 +16,10 @@ import org.apache.spark.sql.SparkSession
 
 import scala.io.StdIn
 import thesis.Refactored._
-import thesis.InProgress._
+//import thesis.InProgress._
+import thesis.Deprecated._
+import thesis.ThesisUtils._
+import thesis.SimpleFramework._
 //import sext._
 
 
@@ -146,7 +149,7 @@ object Main{
         case "map_meta" => run_map_metadata(
           run_reps, args(2),args(3),args(4))(sparkSession)
 
-        case "inverted_idx" => run_create_inverted_index(
+        case "create_invidx" => run_create_inverted_index(
           run_reps, args(2))(sparkSession)
 
         case "query_shp" => run_query_tiles(
@@ -165,8 +168,8 @@ object Main{
         case "run_prelim" => run_prelim_tiling_task(
           run_reps, args(2),args(3))(sparkSession)
 
-        case "invidx" => run_invidx_test(
-          run_reps, args(2))(sparkSession)
+        case "search_invidx" => run_invidx_test(
+          run_reps, args(2), args.drop(3))(sparkSession)
 
         case _ => println("ERROR: Invalid first CLI argument")
       }
@@ -381,12 +384,11 @@ object Main{
     }
   }
 
-  def run_invidx_test(run_reps :Int, inverted_index_filepath: String)(implicit spark_s: SparkSession) = {
+  def run_invidx_test(run_reps :Int, inverted_index_filepath: String, search_tags: Array[String])(implicit spark_s: SparkSession) = {
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
     for( run_rep <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
-        loadInvertedIndex(inverted_index_filepath)
-        //    readTiles_v2(tile_dir_path, output_gtif_path)
+        searchInvertedIndex(inverted_index_filepath, search_tags)
       )
     }
   }
