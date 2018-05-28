@@ -9,7 +9,11 @@ SFC_INDEX=$5
 ### TILE RASTER ###
 for (( i=${ISTART}; i<=${IEND}; i+=${INCREM}))
 do
-   CMD_STR="./sbt \"run tile_raster ${REPS} /mnt/extdisk/data/merged_tiles/victorias_merge_$i.tif /mnt/extdisk/dump/tiles/victorias_merge_$i ${SFC_INDEX}\" &> logs/1_tiling/victorias_${i}_${SFC_INDEX}_run_${REPS}.log"
+   CMD_STR="./sbt \"run tile_raster ${REPS} 000000${i} /mnt/extdisk/data/merged_tiles/victorias_merge_$i.tif /mnt/extdisk/dump/tiles/victorias_merge_$i ${SFC_INDEX}\" &> logs/1_tiling/victorias_${i}_${SFC_INDEX}_run_${REPS}.log"
+   if [ $i -lt 10 ]
+    then
+        CMD_STR="./sbt \"run tile_raster ${REPS} 00000${i} /mnt/extdisk/data/merged_tiles/victorias_merge_$i.tif /mnt/extdisk/dump/tiles/victorias_merge_$i ${SFC_INDEX}\" &> logs/1_tiling/victorias_${i}_${SFC_INDEX}_run_${REPS}.log"
+   fi
    echo "Running: $CMD_STR"
    eval $CMD_STR
 done

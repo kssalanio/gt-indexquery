@@ -326,10 +326,10 @@ object Main{
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
     val guimaras_raster_path = "/home/spark/datasets/SAR/geonode_sar_guimaras.tif"
     stageMetrics.runAndMeasure(
-      readGeotiffAndTile(guimaras_raster_path, output_dir_path, "hilbert")(spark_s.sparkContext))
+      readGeotiffAndTile("0000",guimaras_raster_path, output_dir_path, "hilbert")(spark_s.sparkContext))
   }
 
-  def run_tile_geotiff(run_reps :Int, gtiff_raster_path : String, output_dir_path: String, sfc_index_label: String)(implicit spark_s: SparkSession): Unit ={
+  def run_tile_geotiff(run_reps :Int, dataset_uid: String, gtiff_raster_path : String, output_dir_path: String, sfc_index_label: String)(implicit spark_s: SparkSession): Unit ={
       val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
 //    val time_idx = time{
 //      readGeotiffAndTile(gtiff_raster_path, output_dir_path)
@@ -340,7 +340,7 @@ object Main{
 //        readGeotiffAndTile(guimaras_raster_path, output_dir_path)(spark_s.sparkContext))
     for( a <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
-        readGeotiffAndTile(gtiff_raster_path, output_dir_path, sfc_index_label)(spark_s.sparkContext))
+        readGeotiffAndTile(dataset_uid,gtiff_raster_path, output_dir_path, sfc_index_label)(spark_s.sparkContext))
     }
   }
 

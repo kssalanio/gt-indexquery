@@ -116,7 +116,7 @@ object Refactored {
   }
 
 
-  def readGeotiffAndTile(file_path: String, output_dir_path: String, sfc_index_label: String)(implicit sc: SparkContext): Unit = {
+  def readGeotiffAndTile(dataset_uid: String, file_path: String, output_dir_path: String, sfc_index_label: String)(implicit sc: SparkContext): Unit = {
     // Read GeoTiff file into Raster RDD
     val inputRdd: RDD[(ProjectedExtent, MultibandTile)] =
       sc.hadoopMultibandGeoTiffRDD(file_path)
@@ -153,7 +153,7 @@ object Refactored {
         val sfc_index_hex = sfc_index.toIndex(spatial_key).toHexString
         val padded_hex = padLeft(sfc_index_hex, Constants.PAD_LENGTH, '0')
         //val gtif_file_path : String = output_dir_path+"_"+hilbert_hex+".tif"
-        val gtif_file_path : String = os_path_join(output_dir_path,padded_hex+"_"+spatial_key._1+"_"+spatial_key._2+".tif")
+        val gtif_file_path : String = os_path_join(output_dir_path,dataset_uid+"_"+padded_hex+"_"+spatial_key._1+"_"+spatial_key._2+".tif")
 
         Holder.log.debug(s"Cutting $SpatialKey of ${raster_tile.dimensions} cells covering $extent to [$gtif_file_path]")
         // Write tile to GeoTiff file
