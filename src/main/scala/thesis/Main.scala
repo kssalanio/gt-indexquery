@@ -144,7 +144,7 @@ object Main{
           run_reps, args(2))(sparkSession)
 
         case "tile_raster" => run_tile_geotiff(
-          run_reps, args(2),args(3),args(4))(sparkSession)
+          run_reps, args(2),args(3),args(4),args(5))(sparkSession)
 
         case "map_meta" => run_map_metadata(
           run_reps, args(2),args(3),args(4))(sparkSession)
