@@ -168,8 +168,8 @@ object Main{
         case "run_prelim" => run_prelim_tiling_task(
           run_reps, args(2),args(3))(sparkSession)
 
-        case "search_invidx" => run_invidx_test(
-          run_reps, args(2), args.drop(3))(sparkSession)
+        case "search_invidx" => run_search_inverted_index(
+          run_reps,args(2),args(3),args(4),args(5), args.drop(6))(sparkSession)
 
         case _ => println("ERROR: Invalid first CLI argument")
       }
@@ -368,7 +368,7 @@ object Main{
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
     for( run_rep <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
-        readTiles(tile_dir_path, output_gtif_path, sfc_index_label)
+        readAndMergeTiles(tile_dir_path, output_gtif_path, sfc_index_label)
 //    readTiles_v2(tile_dir_path, output_gtif_path)
       )
     }
@@ -384,11 +384,12 @@ object Main{
     }
   }
 
-  def run_invidx_test(run_reps :Int, inverted_index_filepath: String, search_tags: Array[String])(implicit spark_s: SparkSession) = {
+  def run_search_inverted_index(run_reps :Int, query_shp: String, output_gtif_path:String, sfc_index_label: String, inverted_index_filepath: String, search_tags: Array[String])(implicit spark_s: SparkSession) = {
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
     for( run_rep <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
-        searchInvertedIndex(inverted_index_filepath, search_tags)
+//        searchInvertedIndex(inverted_index_filepath, search_tags)
+        queryTilesWithMeta(query_shp, output_gtif_path, sfc_index_label,inverted_index_filepath, search_tags)
       )
     }
   }

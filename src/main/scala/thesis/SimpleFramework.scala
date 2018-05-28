@@ -1,20 +1,39 @@
 package thesis
 
-import java.io.PrintWriter
+import java.io._
+import java.nio.charset.Charset
 
-import geotrellis.proj4.CRS
-import geotrellis.raster.{MultibandTile, Raster}
-import geotrellis.raster.io.geotiff.GeoTiff
-import geotrellis.raster.resample.Bilinear
-import geotrellis.spark.{Metadata, MultibandTileLayerRDD, SpatialKey, TileLayerMetadata}
+import com.google.uzaygezen.core.{BitVector, BitVectorFactories, CompactHilbertCurve, MultiDimensionalSpec}
+import geotrellis.proj4.{CRS, _}
+import geotrellis.raster.io.geotiff.reader.GeoTiffReader
+import geotrellis.raster.io.geotiff.{GeoTiff, MultibandGeoTiff}
+import geotrellis.raster.resample.{Bilinear, NearestNeighbor}
+import geotrellis.raster.{MultibandTile, TileLayout, _}
+import geotrellis.spark._
 import geotrellis.spark.io.Intersects
-import geotrellis.spark.tiling.{FloatingLayoutScheme, LayoutDefinition}
-import geotrellis.vector.{MultiPolygon, MultiPolygonFeature, ProjectedExtent}
+import geotrellis.spark.io.hadoop._
+import geotrellis.spark.io.index.KeyIndex
+import geotrellis.spark.io.index.hilbert._
+import geotrellis.spark.io.index.zcurve.{Z2, ZSpatialKeyIndex}
+import geotrellis.spark.tiling._
+import geotrellis.util._
+import geotrellis.vector._
+import geotrellis.vector.io._
+import org.apache.spark.SparkContext
 import org.apache.spark.rdd.RDD
 import org.apache.spark.sql.SparkSession
+import org.apache.spark.util.SizeEstimator
+import org.geotools.data.shapefile.ShapefileDumper
+import org.geotools.feature.DefaultFeatureCollection
 import org.json4s.DefaultFormats
 import org.json4s.jackson.Json
+import org.opengis.feature.simple.SimpleFeature
 import thesis.Constants._
+import thesis.Refactored._
+import thesis.ThesisUtils._
+import thesis.ShapeFileReader.readMultiPolygonFeatures
+
+import scala.collection.JavaConverters._
 
 object SimpleFramework {
   def simpleReadTileQuery(run_rep: Int, src_raster_file_path: String, tile_out_path: String, meta_shp_path : String, qry_shp_path : String, output_gtif_path : String )

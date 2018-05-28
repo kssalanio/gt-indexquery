@@ -17,6 +17,7 @@ import geotrellis.raster.resample._
 import geotrellis.raster.io.geotiff._
 import geotrellis.raster.io.geotiff.reader.GeoTiffReader
 import geotrellis.spark.io.Intersects
+import geotrellis.spark.io.index.hilbert.HilbertSpatialKeyIndex
 import geotrellis.util._
 import org.apache.spark.sql.SparkSession
 import org.apache.spark.util.SizeEstimator
@@ -30,6 +31,90 @@ import thesis.ThesisUtils._
 
 
 object Refactored {
+
+  def readAndMergeTiles(tile_dir_path: String, output_gtif_path: String, sfc_index_label: String)(implicit spark_s: SparkSession)={
+    // Create Sequence of Geotiffs
+    implicit val sc = spark_s.sparkContext
+    val tif_file_list = getListOfFiles(tile_dir_path,List[String]("tif"))
+    val gtif_list : List[(String,MultibandGeoTiff)] = tif_file_list.map { tif_file =>
+      (tif_file.getName,GeoTiffReader.readMultiband(tif_file.getAbsolutePath))//.raster.tile)
+    }
+
+    val tile_crs : geotrellis.proj4.CRS = gtif_list(0)._2.crs
+
+    /**
+      *TODO: use computed values instead fo dummy values
+      * Maybe compute first and last tiles from filenames sorted by hex code?
+      */
+    val xResolution = 2
+    val yResolution = 5
+    // Get x,y resolution from list of tile file names
+
+    val XYList = tif_file_list.map{
+      tif_file =>
+        tif_file.getName.split(".")(0).split("_").slice(1,2)
+    }
+
+    val hilbert_index = {
+      import geotrellis.spark.io.index.hilbert._
+      val max_int = (math.pow(2, 32) - 1).toInt
+      //new HilbertSpatialKeyIndex(KeyBounds(SpatialKey(0, 0), SpatialKey(max, max)), 31, 31)
+
+      new HilbertSpatialKeyIndex(
+        KeyBounds(GridBounds(0,0,max_int,max_int)),
+        xResolution,yResolution)
+    }
+
+    val x_vals = scala.collection.mutable.ArrayBuffer.empty[Double]
+    val y_vals = scala.collection.mutable.ArrayBuffer.empty[Double]
+
+    val mtl_seq : Seq[(SpatialKey,MultibandTile)] = gtif_list.map {
+      list_item =>
+        val filename : String  = list_item._1
+        val hex_hilbert = filename.split("_")(0)
+        val mband_gtif: MultibandGeoTiff = list_item._2
+        //TODO:compute actual spatial key
+
+        val decoded_spatial_key = invertHexIndex(hex_hilbert,xResolution,yResolution, sfc_index_label)
+        pprint.pprintln(filename + " | "
+          + decoded_spatial_key._1 + " , "+ decoded_spatial_key._2
+          + " | " + mband_gtif.extent)
+
+        val mband_tile = mband_gtif.raster.tile
+
+        if( decoded_spatial_key.equals(hilbert_index.keyBounds.minKey)){
+          x_vals += mband_gtif.extent.xmin
+          y_vals += mband_gtif.extent.ymax
+        }
+
+        if( decoded_spatial_key.equals(hilbert_index.keyBounds.maxKey)){
+          x_vals += mband_gtif.extent.xmax
+          y_vals += mband_gtif.extent.ymin
+        }
+
+        (decoded_spatial_key,mband_tile)
+    }
+
+    val extents = new Extent(x_vals.min, y_vals.min, x_vals.max, y_vals.max)
+    println("Extents: "+extents.toString())
+
+    // Create MultibandLayerRDD[K,V] with Metadata from RDD
+    val mtl_rdd : RDD[(SpatialKey,MultibandTile)] = sc.parallelize(mtl_seq)
+
+    //TODO: create combined metadata from each tile
+    //    val combined_raster_metadata = mtl_rdd.collectMetadata[SpatialKey](tile_crs, FloatingLayoutScheme(TILE_SIZE))
+    //
+    //    pprint.pprintln("RASTER METADATA: "+combined_raster_metadata)
+
+    //    val raster: Raster[MultibandTile] = MultibandTileLayerRDD(mtl_rdd, raster_metadata).stitch()
+    val raster_tile: MultibandTile = mtl_rdd.stitch()
+
+    // Compute Extent
+
+    GeoTiff(raster_tile, extents, tile_crs)
+      .write(output_gtif_path)
+  }
+
 
   def readGeotiffAndTile(file_path: String, output_dir_path: String, sfc_index_label: String)(implicit sc: SparkContext): Unit = {
     // Read GeoTiff file into Raster RDD
@@ -222,11 +307,12 @@ object Refactored {
   }
 
 
+
   def searchInvertedIndex(invidx_file_path: String, search_tags: Array[String])(implicit spark_s : SparkSession): Array[String] ={
     val search_tag_seq: Seq[SearchTag] = search_tags.grouped(3)
-    .map{ tag_item =>
-      new SearchTag(tag_item(0), tag_item(1), tag_item(2))
-    }.toList
+      .map{ tag_item =>
+        new SearchTag(tag_item(0), tag_item(1), tag_item(2))
+      }.toList
 
     // Load Inverted Index from file into a filter-able RDD
     val invidx_rdd = loadInvertedIndex(invidx_file_path)
@@ -241,11 +327,11 @@ object Refactored {
       case(keyword, documents) =>
         keyword_list.contains(keyword)
     }.map{case(keyword, documents) => documents.toSet}
-    .reduce(_.intersect(_))
-    .map{
-      document_name =>
-        document_name.split(":")(1)
-    }
+      .reduce(_.intersect(_))
+      .map{
+        document_name =>
+          document_name.split(":")(1)
+      }
     println("FILTERED:")
     metadocs_with_keywords.foreach( item=>
       pprint.pprintln(item)
@@ -259,6 +345,7 @@ object Refactored {
 
     return metadocs_with_keywords.toArray
   }
+
 
   def queryTiles(tile_dir_path: String, query_shp: String, output_gtif_path: String, sfc_index_label : String)(implicit spark_s: SparkSession)= {
     // Create Sequence of Geotiffs
@@ -396,6 +483,291 @@ object Refactored {
     //    GeoTiff(raster_tile, tile_crs).write(output_gtif_path)
 
 
+  }
+  def queryTilesWithMeta(query_shp: String, output_gtif_path: String, sfc_index_label : String, invidx_file_path: String, search_tags: Array[String])(implicit spark_s : SparkSession)= {
+    implicit val sc = spark_s.sparkContext
+    val meta_json_docs = searchInvertedIndex(invidx_file_path: String, search_tags: Array[String])
+    val tif_file_list = meta_json_docs.map{
+      json_doc_path =>
+        new File(json_doc_path.replace("/json", "").replace(".json", ".tif"))
+    }.toList
+
+    println("GEOTIFF FILES:")
+    tif_file_list.foreach( item=>
+      pprint.pprintln(item)
+    )
+
+    // Create Sequence of Geotiffs
+    val gtif_list: List[(String, MultibandGeoTiff)] = tif_file_list.map { tif_file =>
+      (tif_file.getName, GeoTiffReader.readMultiband(tif_file.getAbsolutePath)) //.raster.tile)
+    }
+
+    println("sizeEstimate - gtif_list: "+SizeEstimator.estimate(gtif_list).toString)
+
+    val tile_crs: geotrellis.proj4.CRS = gtif_list(0)._2.crs
+
+    //TODO: Recreate index from computing query quadtree and prefix tree, not from inverting file index
+
+
+    // Get x,y resolution from list of tile file names
+    val xy_list = tif_file_list.map {
+      tif_file =>
+        tif_file.getName.split('.')(0).split('_').takeRight(2).map(_.toInt)
+    }
+
+    println("XY_LIST")
+    pprint.pprintln(xy_list)
+
+
+    val xy_rdd = sc.parallelize(xy_list)
+
+    println("sizeEstimate - xy_rdd: "+SizeEstimator.estimate(xy_list).toString)
+
+    val min_max_x = xy_rdd.aggregate[(Int,Int)](xy_list(0)(0),xy_list(0)(0))(
+      { (acc, item) =>   // Combining accumulator and element
+        (math.min(acc._1, item(0)), math.max(acc._2, item(0)))
+      },
+      { (acc1, acc2) =>   // Combining accumulator and element
+        (math.min(acc1._1, acc2._1), math.max(acc1._2, acc2._2))
+      }
+
+    )
+
+    val min_max_y = xy_list.aggregate[(Int,Int)](xy_list(0)(1),xy_list(0)(1))(
+      { (acc, item) =>   // Combining accumulator and element
+        (math.min(acc._1, item(1)), math.max(acc._2, item(1)))
+      },
+      { (acc1, acc2) =>   // Combining accumulator and element
+        (math.min(acc1._1, acc2._1), math.max(acc1._2, acc2._2))
+      }
+
+    )
+    println("Min/Max XY:")
+    pprint.pprintln(min_max_x)
+    pprint.pprintln(min_max_y)
+    val x_resolution = min_max_x._2
+    val y_resolution = min_max_y._2
+
+    val sfc_index = createSFCIndex(sfc_index_label, x_resolution, y_resolution)
+
+    val x_vals = scala.collection.mutable.ArrayBuffer.empty[Double]
+    val y_vals = scala.collection.mutable.ArrayBuffer.empty[Double]
+
+    val mtl_seq : Seq[(SpatialKey,MultibandTile)] = gtif_list.map {
+      list_item =>
+        val filename : String  = list_item._1
+        println("FILENAME: "+filename)
+
+        //        val hex_hilbert = filename.split("_")(0) // Hex Index at (0)
+        val hex_index = filename.split("_")(1)  // Dataset ID at (0), Hex Index at (1)
+        val mband_gtif: MultibandGeoTiff = list_item._2
+
+        //        pprint.pprintln(filename + " | "
+        //          + bitvectors(0).toLong + " , "+ bitvectors(1).toLong
+        //          + " | " + mband_gtif.extent)
+
+        val decoded_spatial_key = invertHexIndex(hex_index,x_resolution,y_resolution, sfc_index_label)
+        println("SPATIAL KEY: "+decoded_spatial_key.toString)
+        val mband_tile = mband_gtif.raster.tile
+
+//        if( decoded_spatial_key.equals(sfc_index.keyBounds.minKey)){
+//          x_vals += mband_gtif.extent.xmax
+//          y_vals += mband_gtif.extent.ymin
+//          y_vals += mband_gtif.extent.ymax
+//          x_vals += mband_gtif.extent.xmin
+//        }
+//
+//        if( decoded_spatial_key.equals(sfc_index.keyBounds.maxKey)){
+//          x_vals += mband_gtif.extent.xmin
+//          x_vals += mband_gtif.extent.xmax
+//          y_vals += mband_gtif.extent.ymin
+//          y_vals += mband_gtif.extent.ymax
+//        }
+
+        x_vals += mband_gtif.extent.xmax
+        y_vals += mband_gtif.extent.ymin
+        y_vals += mband_gtif.extent.ymax
+        x_vals += mband_gtif.extent.xmin
+
+        (decoded_spatial_key,mband_tile)
+    }
+
+    println("X&Y Vals")
+//    pprint.pprintln(x_vals)
+    x_vals.foreach(println)
+//    pprint.pprintln(y_vals)
+    y_vals.foreach(println)
+    //TODO: Find the root cause as to why the ArrayBuffers are empty
+
+
+    val raster_merged_extents = new Extent(x_vals.min, y_vals.min, x_vals.max, y_vals.max)
+    println("Extents: "+raster_merged_extents.toString())
+
+    // Create MultibandLayerRDD[K,V] with Metadata from RDD
+    val mtl_rdd : RDD[(SpatialKey,MultibandTile)] = sc.parallelize(mtl_seq)
+    println("sizeEstimate - mtl_rdd: "+SizeEstimator.estimate(mtl_rdd).toString)
+
+    val recreated_metadata = TileLayerMetadata(
+      gtif_list(0)._2.cellType,
+      LayoutDefinition(
+        GridExtent(
+          raster_merged_extents,
+          10.0, //thesis.Constants.TILE_SIZE.toDouble,
+          10.0 //thesis.Constants.TILE_SIZE.toDouble
+        ),
+        thesis.Constants.TILE_SIZE,
+        thesis.Constants.TILE_SIZE
+      ),
+      raster_merged_extents,
+      tile_crs,
+      sfc_index.keyBounds)
+    val rdd_with_meta = ContextRDD(mtl_rdd, recreated_metadata)
+    println("CREATED METADATA: ")
+    println("sizeEstimate - rdd_with_meta: "+SizeEstimator.estimate(rdd_with_meta).toString)
+    pprint.pprintln(recreated_metadata)
+
+    //Stitches the raster together
+    //    val raster_tile: MultibandTile = rdd_with_meta.stitch()
+    //    GeoTiff(raster_tile, raster_merged_extents, tile_crs).write(output_gtif_path)
+
+    val features = ShapeFileReader.readMultiPolygonFeatures(query_shp)
+    val region: MultiPolygon = features(0).geom
+    val query_extents = features(0).envelope
+    val attribute_table = features(0).data
+    println("sizeEstimate - features: "+SizeEstimator.estimate(features).toString)
+
+
+    //    val raster_tile: MultibandTile = rdd_with_meta.stitch().mask(region) // Correct so far
+    //    GeoTiff(raster_tile, raster_merged_extents, tile_crs).write(output_gtif_path)
+    val filtered_rdd = rdd_with_meta.filter().where(Intersects(query_extents)).result
+
+    val raster_tile: Raster[MultibandTile] = filtered_rdd.mask(region).stitch // Correct so far
+
+    println("EXECUTOR MEMORY: "+sc.getExecutorMemoryStatus)
+    println("sizeEstimate - raster_tile: "+SizeEstimator.estimate(raster_tile).toString)
+
+    GeoTiff(raster_tile, tile_crs).write(output_gtif_path)
+  }
+
+
+  def compareMetadata(tile_dir_path :String, merged_tif_path:String, sfc_index_label: String)(implicit spark_s: SparkSession)={
+    // Create Sequence of Geotiffs
+    implicit val sc = spark_s.sparkContext
+    val tif_file_list = getListOfFiles(tile_dir_path, List[String]("tif"))
+    val gtif_list: List[(String, MultibandGeoTiff)] = tif_file_list.map { tif_file =>
+      (tif_file.getName, GeoTiffReader.readMultiband(tif_file.getAbsolutePath)) //.raster.tile)
+    }
+
+    val tile_crs: geotrellis.proj4.CRS = gtif_list(0)._2.crs
+
+    // Get x,y resolution from list of tile file names
+    val xy_list = tif_file_list.map {
+      tif_file =>
+        tif_file.getName.split('.')(0).split('_').drop(1).map(_.toInt)
+    }
+    val xy_rdd = sc.parallelize(xy_list)
+
+    val min_max_x = xy_rdd.aggregate[(Int,Int)](xy_list(0)(0),xy_list(0)(0))(
+      { (acc, item) =>   // Combining accumulator and element
+        (math.min(acc._1, item(0)), math.max(acc._2, item(0)))
+      },
+      { (acc1, acc2) =>   // Combining accumulator and element
+        (math.min(acc1._1, acc2._1), math.max(acc1._2, acc2._2))
+      }
+
+    )
+
+    val min_max_y = xy_list.aggregate[(Int,Int)](xy_list(0)(1),xy_list(0)(1))(
+      { (acc, item) =>   // Combining accumulator and element
+        (math.min(acc._1, item(1)), math.max(acc._2, item(1)))
+      },
+      { (acc1, acc2) =>   // Combining accumulator and element
+        (math.min(acc1._1, acc2._1), math.max(acc1._2, acc2._2))
+      }
+
+    )
+
+    pprint.pprintln(min_max_x)
+    pprint.pprintln(min_max_y)
+    val xResolution = min_max_x._2
+    val yResolution = min_max_y._2
+
+    val hilbert_index = {
+      val max_int = (math.pow(2, 32) - 1).toInt
+      //new HilbertSpatialKeyIndex(KeyBounds(SpatialKey(0, 0), SpatialKey(max, max)), 31, 31)
+
+      new HilbertSpatialKeyIndex(
+        KeyBounds(GridBounds(0, 0, xResolution, yResolution)),
+        xResolution, yResolution)
+    }
+
+    val x_vals = scala.collection.mutable.ArrayBuffer.empty[Double]
+    val y_vals = scala.collection.mutable.ArrayBuffer.empty[Double]
+
+    val mtl_seq : Seq[(SpatialKey,MultibandTile)] = gtif_list.map {
+      list_item =>
+        val filename : String  = list_item._1
+        val hex_hilbert = filename.split("_")(0)
+        val mband_gtif: MultibandGeoTiff = list_item._2
+
+        val decoded_spatial_key = invertHexIndex(hex_hilbert,xResolution,yResolution, sfc_index_label)
+        pprint.pprintln(filename + " | "
+          + decoded_spatial_key._1 + " , "+ decoded_spatial_key._2
+          + " | " + mband_gtif.extent)
+        val mband_tile = mband_gtif.raster.tile
+
+        if( decoded_spatial_key.equals(hilbert_index.keyBounds.minKey)){
+          x_vals += mband_gtif.extent.xmin
+          x_vals += mband_gtif.extent.xmax
+          y_vals += mband_gtif.extent.ymin
+          y_vals += mband_gtif.extent.ymax
+        }
+
+        if( decoded_spatial_key.equals(hilbert_index.keyBounds.maxKey)){
+          x_vals += mband_gtif.extent.xmin
+          x_vals += mband_gtif.extent.xmax
+          y_vals += mband_gtif.extent.ymin
+          y_vals += mband_gtif.extent.ymax
+        }
+
+        (decoded_spatial_key,mband_tile)
+    }
+
+    val raster_merged_extents = new Extent(x_vals.min, y_vals.min, x_vals.max, y_vals.max)
+    println("Extents: "+raster_merged_extents.toString())
+
+    // Create MultibandLayerRDD[K,V] with Metadata from RDD
+    val mtl_rdd : RDD[(SpatialKey,MultibandTile)] = sc.parallelize(mtl_seq)
+
+
+    //TODO: Ongoing here
+    val recreated_metadata = TileLayerMetadata(
+      gtif_list(0)._2.cellType,
+      LayoutDefinition(
+        GridExtent(
+          raster_merged_extents,
+          raster_merged_extents.width/(thesis.Constants.TILE_SIZE*(hilbert_index.xResolution+1)).toDouble, //thesis.Constants.TILE_SIZE.toDouble,
+          raster_merged_extents.height/(thesis.Constants.TILE_SIZE*(hilbert_index.yResolution+1)).toDouble //thesis.Constants.TILE_SIZE.toDouble
+        ),
+        thesis.Constants.TILE_SIZE,
+        thesis.Constants.TILE_SIZE
+      ),
+      raster_merged_extents,
+      tile_crs,
+      hilbert_index.keyBounds)
+
+    println(">>> Reading GeoTiff: "+merged_tif_path)
+    val input_rdd: RDD[(ProjectedExtent, MultibandTile)] =
+      sc.hadoopMultibandGeoTiffRDD(merged_tif_path)
+
+    println(">>> Tiling GeoTiff")
+    // Tiling layout to TILE_SIZE x TILE_SIZE grids
+    val (_, merged_raster_metadata) =
+      TileLayerMetadata.fromRdd(input_rdd, FloatingLayoutScheme(TILE_SIZE))
+    println("TILED: ")
+    pprint.pprintln(recreated_metadata)
+    println("MERGED: ")
+    pprint.pprintln(merged_raster_metadata)
   }
 
 }
