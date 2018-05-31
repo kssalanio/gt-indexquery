@@ -36,7 +36,7 @@ object Main{
   def createSparkContext(): Unit = {
     val conf = new org.apache.spark.SparkConf()
     conf.setMaster("local[*]")
-    implicit val sc = geotrellis.spark.util.SparkUtils.createSparkContext("Test console", conf)
+    implicit val sc: SparkContext = geotrellis.spark.util.SparkUtils.createSparkContext("Test console", conf)
   }
 
   def createAllSparkConf(): SparkConf = {
@@ -135,6 +135,7 @@ object Main{
     try {
       /**
         * Select test based on first CLI arg
+        * //TODO:CLI ARGS
         */
       println("ARGUMENTS:")
       pprint.pprintln(args)
@@ -190,14 +191,14 @@ object Main{
 
   def readTestCSV(csv_filepath : String) : List[Map[String,String]] = {
     val reader = CSVReader.open(new File(csv_filepath))
-    return reader.allWithHeaders()
+    reader.allWithHeaders()
   }
 
 
-  def run_csv_tests(run_reps :Int, input_csv_filepath : String)(implicit spark_s: SparkSession) = {
+  def run_csv_tests(run_reps :Int, input_csv_filepath : String)(implicit spark_s: SparkSession): Unit = {
 
     // Create CSV file for output and write headers
-    implicit val sc = spark_s.sparkContext
+    implicit val sc: SparkContext = spark_s.sparkContext
 
     val output_csv_file_name = "/home/spark/datasets/csv/results/" + getCurrentDateAndTime("yyyy-MMdd-hhmmss") + ".csv"
     val output_csv_file = new File(output_csv_file_name)
@@ -349,42 +350,42 @@ object Main{
     for( a <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
         createTileMetadata(dataset_uid, tile_dir_path, metadata_shp_filepath)
-//        createTileMetadata_2(dataset_uid, tile_dir_path, metadata_shp_filepath)
+//        createTileMetadata_2(dataset_uid, tile_json_dir_path, metadata_shp_filepath)
       )
     }
   }
 
-  def run_create_inverted_index(run_reps :Int, tile_dir_path: String)(implicit spark_s: SparkSession): Unit ={
+  def run_create_inverted_index(run_reps :Int, tile_json_dir_path: String)(implicit spark_s: SparkSession): Unit ={
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
     for( run_rep <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
-//        createInvertedIndex(tile_dir_path, run_rep)
-        createInvertedIndex(tile_dir_path, run_rep)
+//        createInvertedIndex(tile_json_dir_path, run_rep)
+        createInvertedIndex(tile_json_dir_path, run_rep)
       )
     }
   }
 
-  def run_tile_reader_tests(run_reps :Int, tile_dir_path: String, output_gtif_path: String, sfc_index_label: String)(implicit spark_s: SparkSession) = {
+  def run_tile_reader_tests(run_reps :Int, tile_dir_path: String, output_gtif_path: String, sfc_index_label: String)(implicit spark_s: SparkSession): Unit = {
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
     for( run_rep <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
         readAndMergeTiles(tile_dir_path, output_gtif_path, sfc_index_label)
-//    readTiles_v2(tile_dir_path, output_gtif_path)
+//    readTiles_v2(tile_json_dir_path, output_gtif_path)
       )
     }
   }
 
-  def run_query_tiles(run_reps :Int, tile_dir_path: String, query_shp: String, output_gtif_path:String, sfc_index_label: String)(implicit spark_s: SparkSession) = {
+  def run_query_tiles(run_reps :Int, tile_dir_path: String, query_shp: String, output_gtif_path:String, sfc_index_label: String)(implicit spark_s: SparkSession): Unit = {
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
     for( run_rep <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
         queryTiles(tile_dir_path, query_shp, output_gtif_path, sfc_index_label)
-        //    readTiles_v2(tile_dir_path, output_gtif_path)
+        //    readTiles_v2(tile_json_dir_path, output_gtif_path)
       )
     }
   }
 
-  def run_search_inverted_index(run_reps :Int, query_shp: String, output_gtif_path:String, sfc_index_label: String, inverted_index_filepath: String, search_tags: Array[String])(implicit spark_s: SparkSession) = {
+  def run_search_inverted_index(run_reps :Int, query_shp: String, output_gtif_path:String, sfc_index_label: String, inverted_index_filepath: String, search_tags: Array[String])(implicit spark_s: SparkSession): Unit = {
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
     for( run_rep <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
@@ -394,7 +395,7 @@ object Main{
     }
   }
 
-  def run_cmp_meta(run_reps :Int, tile_dir_path: String, merged_tif_path: String, sfc_index_label: String) (implicit spark_s: SparkSession) = {
+  def run_cmp_meta(run_reps :Int, tile_dir_path: String, merged_tif_path: String, sfc_index_label: String) (implicit spark_s: SparkSession): Unit = {
     val stageMetrics = new ch.cern.sparkmeasure.StageMetrics(spark_s)
     for( run_rep <- 1 to run_reps) {
       stageMetrics.runAndMeasure(
@@ -404,7 +405,7 @@ object Main{
   }
 
   def run_simple_read_tile_query(run_reps: Int, src_raster_file_path: String, tile_out_path: String, meta_shp_path : String, qry_shp_path : String, output_gtif_path : String )
-                                (implicit spark_s: SparkSession) = {
+                                (implicit spark_s: SparkSession): Unit = {
     for( run_rep <- 1 to run_reps) {
       simpleReadTileQuery(run_rep,src_raster_file_path, tile_out_path, meta_shp_path, qry_shp_path, output_gtif_path)
     }
@@ -413,5 +414,5 @@ object Main{
 }
 
 object Holder extends Serializable {
-  @transient lazy val log = Logger.getLogger(getClass.getName)
+  @transient lazy val log: Logger = Logger.getLogger(getClass.getName)
 }
