@@ -414,19 +414,25 @@ object Refactored {
         val decoded_spatial_key = invertHexIndex(hex_hilbert,x_resolution,y_resolution, sfc_index_label)
         val mband_tile = mband_gtif.raster.tile
 
-        if( decoded_spatial_key.equals(sfc_index.keyBounds.minKey)){
-          x_vals += mband_gtif.extent.xmin
-          x_vals += mband_gtif.extent.xmax
-          y_vals += mband_gtif.extent.ymin
-          y_vals += mband_gtif.extent.ymax
-        }
-
-        if( decoded_spatial_key.equals(sfc_index.keyBounds.maxKey)){
-          x_vals += mband_gtif.extent.xmin
-          x_vals += mband_gtif.extent.xmax
-          y_vals += mband_gtif.extent.ymin
-          y_vals += mband_gtif.extent.ymax
-        }
+        // Commented out because it results to empty values
+        // when filtered keys aren't in the list
+//        if( decoded_spatial_key.equals(sfc_index.keyBounds.minKey)){
+//          x_vals += mband_gtif.extent.xmin
+//          x_vals += mband_gtif.extent.xmax
+//          y_vals += mband_gtif.extent.ymin
+//          y_vals += mband_gtif.extent.ymax
+//        }
+//
+//        if( decoded_spatial_key.equals(sfc_index.keyBounds.maxKey)){
+//          x_vals += mband_gtif.extent.xmin
+//          x_vals += mband_gtif.extent.xmax
+//          y_vals += mband_gtif.extent.ymin
+//          y_vals += mband_gtif.extent.ymax
+//        }
+        x_vals += mband_gtif.extent.xmin
+        x_vals += mband_gtif.extent.xmax
+        y_vals += mband_gtif.extent.ymin
+        y_vals += mband_gtif.extent.ymax
 
         (decoded_spatial_key,mband_tile)
     }
