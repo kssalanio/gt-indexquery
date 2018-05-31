@@ -369,9 +369,9 @@ object Refactored {
     }
 //    val xy_rdd = sc.parallelize(xy_list)
 
-    println("sizeEstimate - xy_rdd: "+SizeEstimator.estimate(xy_list).toString)
+    println("sizeEstimate - xy_rdd: "+SizeEstimator.estimate(xy_rdd).toString)
 
-    val min_max_x = xy_rdd.aggregate[(Int,Int)](xy_list(0)(0),xy_list(0)(0))(
+    val min_max_x = xy_rdd.aggregate[(Int,Int)](xy_rdd(0)(0),xy_rdd(0)(0))(
       { (acc, item) =>   // Combining accumulator and element
         (math.min(acc._1, item(0)), math.max(acc._2, item(0)))
       },
@@ -381,7 +381,7 @@ object Refactored {
 
     )
 
-    val min_max_y = xy_list.aggregate[(Int,Int)](xy_list(0)(1),xy_list(0)(1))(
+    val min_max_y = xy_rdd.aggregate[(Int,Int)](xy_rdd(0)(1),xy_rdd(0)(1))(
       { (acc, item) =>   // Combining accumulator and element
         (math.min(acc._1, item(1)), math.max(acc._2, item(1)))
       },
