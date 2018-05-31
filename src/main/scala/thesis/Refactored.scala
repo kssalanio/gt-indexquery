@@ -242,7 +242,7 @@ object Refactored {
 //  }
 
   def createInvertedIndex(tile_dir_path: String, run_rep: Int)(implicit spark_s : SparkSession)={
-    //val json_files = getListOfFiles(tile_dir_path,List[String]("json"))
+    //val json_files = getListOfFiles(tile_json_dir_path,List[String]("json"))
     val json_files_rdd = spark_s.sparkContext.wholeTextFiles(tile_dir_path)
     json_files_rdd.flatMap {
       case (path, text) => {
@@ -359,12 +359,15 @@ object Refactored {
 
     val tile_crs: geotrellis.proj4.CRS = gtif_list(0)._2.crs
 
+    sc.parallelize(tif_file_list)
+
     // Get x,y resolution from list of tile file names
-    val xy_list = tif_file_list.map {
+    val xy_rdd = tif_file_list.map {
       tif_file =>
-        tif_file.getName.split('.')(0).split('_').drop(1).map(_.toInt)
+        println("Handling tif file: "+tif_file.getName)
+        tif_file.getName.split('.')(0).split('_').drop(2).map(_.toInt)
     }
-    val xy_rdd = sc.parallelize(xy_list)
+//    val xy_rdd = sc.parallelize(xy_list)
 
     println("sizeEstimate - xy_rdd: "+SizeEstimator.estimate(xy_list).toString)
 
