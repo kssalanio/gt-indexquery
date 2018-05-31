@@ -34,7 +34,7 @@ done
 ### INVERTED INDEX ###
 for (( i=${ISTART}; i<=${IEND}; i+=${INCREM}))
 do
-   CMD_STR="./sbt \"run inverted_idx ${REPS} /mnt/extdisk/dump/tiles/victorias_merge_$i/json /home/spark/coverage/mindoro_coverage.shp\" &> logs/3_invt_idx/victorias_${i}_${SFC_INDEX}_run_${REPS}.log"
+   CMD_STR="./sbt \"run create_invidx ${REPS} /mnt/extdisk/dump/tiles/victorias_merge_$i/json /home/spark/coverage/mindoro_coverage.shp\" &> logs/3_invt_idx/victorias_${i}_${SFC_INDEX}_run_${REPS}.log"
    echo "Running: $CMD_STR"
    eval $CMD_STR
 done
