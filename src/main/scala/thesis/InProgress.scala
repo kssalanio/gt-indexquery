@@ -46,7 +46,7 @@ object InProgress {
     */
   def writeToGeoJSON(input_rdd: RDD[MultiPolygonFeature[Map[String, Object]]], crs: CRS, output_dir: String): Unit = {
     input_rdd.map(ft => {
-      val ft_name = ft.data("Block_Name").toString()
+      val ft_name = ft.data("Block_Name").toString
       println("Writing: " + ft_name)
       Some(new PrintWriter(new File(output_dir + ft_name + "_geom.geojson")) {
         write(ft.geom.toGeoJson.toString); close
@@ -279,6 +279,9 @@ object InProgress {
         val hilbertBitVector = BitVectorFactories.OPTIMAL.apply(chc.getSpec.sumBitsPerDimension)
         hilbertBitVector.copyFrom(long_var)
         chc.indexInverse(hilbertBitVector, bit_vectors)
+
+        // TODO: ??? Gets flipped for some reason ???
+//        return SpatialKey(bit_vectors(0).toLong.toInt ,bit_vectors(1).toLong.toInt)
         return SpatialKey(bit_vectors(0).toLong.toInt ,bit_vectors(1).toLong.toInt)
       }
     }

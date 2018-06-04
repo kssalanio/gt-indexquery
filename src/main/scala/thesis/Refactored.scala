@@ -406,7 +406,7 @@ object Refactored {
         //          + bitvectors(0).toLong + " , "+ bitvectors(1).toLong
         //          + " | " + mband_gtif.extent)
 
-        val decoded_spatial_key = invertHexIndex(hex_index,x_resolution,y_resolution, sfc_index_label)
+        val decoded_spatial_key = invertHexIndex(hex_index, x_resolution, y_resolution, sfc_index_label)
         println("Decoded SFC Key: "+decoded_spatial_key
           +" ("+decoded_spatial_key.col +" , "+decoded_spatial_key.row + ")"
           +" => "+filename)
