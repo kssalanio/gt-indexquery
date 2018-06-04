@@ -255,10 +255,10 @@ object InProgress {
     val long_index = java.lang.Long.parseLong(hex_string, 16)
 
     sfc_index_label match {
-      case Constants.SFC_LABEL_HILBERT => {
+      case Constants.SFC_LABEL_ZORDER => {
         return SpatialKey(Z2.combine(long_index)+1, (Z2.combine(long_index>>1))+1)
       }
-      case Constants.SFC_LABEL_ZORDER => {
+      case Constants.SFC_LABEL_HILBERT => {
         val chc = {
           val dimensionSpec =
             new MultiDimensionalSpec(
