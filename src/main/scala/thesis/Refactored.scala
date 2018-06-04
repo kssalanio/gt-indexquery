@@ -478,6 +478,12 @@ object Refactored {
     //    GeoTiff(raster_tile, raster_merged_extents, tile_crs).write(output_gtif_path)
     val filtered_rdd = rdd_with_meta.filter().where(Intersects(query_extents)).result
 
+    println("Filtered ")
+    println(filtered_rdd.count())
+    filtered_rdd.collect.foreach{ tile =>
+      println(tile._1)
+    }
+
     val raster_tile: Raster[MultibandTile] = filtered_rdd.mask(region).stitch // Correct so far
 
     println("EXECUTOR MEMORY: "+sc.getExecutorMemoryStatus)
