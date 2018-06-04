@@ -282,7 +282,7 @@ object InProgress {
 
         // TODO: ??? Gets flipped for some reason ???
 //        return SpatialKey(bit_vectors(0).toLong.toInt ,bit_vectors(1).toLong.toInt)
-        return SpatialKey(bit_vectors(0).toLong.toInt ,bit_vectors(1).toLong.toInt)
+        return SpatialKey(bit_vectors(1).toLong.toInt ,bit_vectors(0).toLong.toInt)
       }
     }
 
