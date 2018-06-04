@@ -387,9 +387,7 @@ object Refactored {
       }
 
     )
-    println("Min/Max XY:")
-    pprint.pprintln(min_max_x)
-    pprint.pprintln(min_max_y)
+    println("Min/Max XY:" + min_max_x + " | " +min_max_y)
     val x_resolution = min_max_x._2
     val y_resolution = min_max_y._2
 
