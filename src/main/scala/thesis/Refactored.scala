@@ -348,7 +348,7 @@ object Refactored {
 
   def filterTilesByExtents(gtif_list: List[(String, MultibandGeoTiff)], query_extents: Extent, sfc_index_label : String)
   (implicit spark_s: SparkSession):
-  (CRS, RDD[(SpatialKey, MultibandTile)] with Metadata[TileLayerMetadata[SpatialKey]]) = {
+  RDD[(SpatialKey, MultibandTile)] with Metadata[TileLayerMetadata[SpatialKey]] = {
 
     implicit val sc = spark_s.sparkContext
     println("sizeEstimate - gtif_list: "+SizeEstimator.estimate(gtif_list).toString)
@@ -470,7 +470,7 @@ object Refactored {
 
     //    val raster_tile: MultibandTile = rdd_with_meta.stitch().mask(region) // Correct so far
     //    GeoTiff(raster_tile, raster_merged_extents, tile_crs).write(output_gtif_path)
-    return (tile_crs, rdd_with_meta.filter().where(Intersects(query_extents)).result)
+    return rdd_with_meta.filter().where(Intersects(query_extents)).result
   }
 
   def queryTiles(tile_dir_path: String, query_shp: String, output_gtif_path: String, sfc_index_label : String)(implicit spark_s: SparkSession)= {
@@ -487,7 +487,7 @@ object Refactored {
     val attribute_table = features(0).data
     println("sizeEstimate - features: "+SizeEstimator.estimate(features).toString)
 
-    val (tile_crs: CRS, filtered_rdd: RDD[(SpatialKey, MultibandTile)] with Metadata[TileLayerMetadata[SpatialKey]]) =
+    val filtered_rdd: RDD[(SpatialKey, MultibandTile)] with Metadata[TileLayerMetadata[SpatialKey]] =
       filterTilesByExtents(gtif_list, query_extents, sfc_index_label)
 
     val raster_tile: Raster[MultibandTile] = filtered_rdd.mask(region).stitch // Correct so far
@@ -497,7 +497,6 @@ object Refactored {
 
     //    GeoTiff(raster_tile, tile_crs).write(output_gtif_path)
     GeoTiff(raster_tile, filtered_rdd.metadata.crs).write(output_gtif_path)
-    println("CRS compare:\n"+tile_crs.toProj4String+"\n"+filtered_rdd.metadata.crs.toProj4String)
 
     //    val raster_tile: MultibandTile = rdd_with_meta.stitch().mask(region).crop(query_extents) // Correct so far
     //    GeoTiff(raster_tile, query_extents, tile_crs).write(output_gtif_path)
@@ -535,7 +534,7 @@ object Refactored {
     println("sizeEstimate - features: "+SizeEstimator.estimate(features).toString)
 
     // Filter the tiles from gtif_list using query extents
-    val (tile_crs: CRS, filtered_rdd: RDD[(SpatialKey, MultibandTile)] with Metadata[TileLayerMetadata[SpatialKey]]) =
+    val filtered_rdd: RDD[(SpatialKey, MultibandTile)] with Metadata[TileLayerMetadata[SpatialKey]] =
       filterTilesByExtents(gtif_list, query_extents, sfc_index_label)
 
 
@@ -545,7 +544,7 @@ object Refactored {
     println("EXECUTOR MEMORY: "+sc.getExecutorMemoryStatus)
     println("sizeEstimate - raster_tile: "+SizeEstimator.estimate(raster_tile).toString)
 
-    GeoTiff(raster_tile, tile_crs).write(output_gtif_path)
+    GeoTiff(raster_tile, filtered_rdd.metadata.crs).write(output_gtif_path)
   }
 
 
