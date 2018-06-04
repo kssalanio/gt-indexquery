@@ -444,12 +444,6 @@ object Refactored {
     // Create MultibandLayerRDD[K,V] with Metadata from RDD
     val mtl_rdd : RDD[(SpatialKey,MultibandTile)] = sc.parallelize(mtl_seq)
     println("sizeEstimate - mtl_rdd: "+SizeEstimator.estimate(mtl_rdd).toString)
-    
-    println("MTL RDD: ")
-    println(mtl_rdd.count())
-    mtl_rdd.collect.foreach{ tile =>
-      println(tile._1)
-    }
 
     val recreated_metadata = TileLayerMetadata(
       gtif_list(0)._2.cellType,
@@ -470,13 +464,6 @@ object Refactored {
     println("sizeEstimate - rdd_with_meta: "+SizeEstimator.estimate(rdd_with_meta).toString)
     pprint.pprintln(recreated_metadata)
 
-    println("RDD with Meta: ")
-    println(rdd_with_meta.count())
-    rdd_with_meta.collect.foreach{ tile =>
-      println(tile._1)
-    }
-
-
     //Stitches the raster together
     //    val raster_tile: MultibandTile = rdd_with_meta.stitch()
     //    GeoTiff(raster_tile, raster_merged_extents, tile_crs).write(output_gtif_path)
@@ -491,15 +478,7 @@ object Refactored {
 
     //    val raster_tile: MultibandTile = rdd_with_meta.stitch().mask(region) // Correct so far
     //    GeoTiff(raster_tile, raster_merged_extents, tile_crs).write(output_gtif_path)
-    val filtered_rdd = rdd_with_meta.filter().where(Intersects(region)).result
-
-    //TODO: HERE error in filter and stitch, results to empty
-    println("Filtered ")
-    println(filtered_rdd.count())
-    filtered_rdd.collect.foreach{ tile =>
-      println(tile._1)
-    }
-
+    val filtered_rdd = rdd_with_meta.filter().where(Intersects(query_extents)).result
 
     val raster_tile: Raster[MultibandTile] = filtered_rdd.mask(region).stitch // Correct so far
 
