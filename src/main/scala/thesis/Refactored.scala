@@ -472,11 +472,20 @@ object Refactored {
     val query_extents = features(0).envelope
     val attribute_table = features(0).data
     println("sizeEstimate - features: "+SizeEstimator.estimate(features).toString)
+    println("Query Extents: "+features(0).envelope)
+
 
 
     //    val raster_tile: MultibandTile = rdd_with_meta.stitch().mask(region) // Correct so far
     //    GeoTiff(raster_tile, raster_merged_extents, tile_crs).write(output_gtif_path)
-    val filtered_rdd = rdd_with_meta.filter().where(Intersects(query_extents)).result
+    val filtered_rdd = rdd_with_meta.filter().where(Intersects(region)).result
+
+    //TODO: HERE error in filter and stitch, results to empty
+    println("Filtered ")
+    println(filtered_rdd.count())
+    filtered_rdd.collect.foreach{ tile =>
+      println(tile._1)
+    }
 
     val raster_tile: Raster[MultibandTile] = filtered_rdd.mask(region).stitch // Correct so far
 
