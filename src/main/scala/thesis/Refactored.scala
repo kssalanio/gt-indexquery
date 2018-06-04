@@ -359,7 +359,7 @@ object Refactored {
 
     val tile_crs: geotrellis.proj4.CRS = gtif_list(0)._2.crs
 
-    sc.parallelize(tif_file_list)
+//    sc.parallelize(tif_file_list)
 
     // Get x,y resolution from list of tile file names
     val xy_rdd = tif_file_list.map {
@@ -443,6 +443,12 @@ object Refactored {
     // Create MultibandLayerRDD[K,V] with Metadata from RDD
     val mtl_rdd : RDD[(SpatialKey,MultibandTile)] = sc.parallelize(mtl_seq)
     println("sizeEstimate - mtl_rdd: "+SizeEstimator.estimate(mtl_rdd).toString)
+    
+    println("MTL RDD: ")
+    println(mtl_rdd.count())
+    mtl_rdd.collect.foreach{ tile =>
+      println(tile._1)
+    }
 
     val recreated_metadata = TileLayerMetadata(
       gtif_list(0)._2.cellType,
@@ -463,6 +469,13 @@ object Refactored {
     println("sizeEstimate - rdd_with_meta: "+SizeEstimator.estimate(rdd_with_meta).toString)
     pprint.pprintln(recreated_metadata)
 
+    println("RDD with Meta: ")
+    println(rdd_with_meta.count())
+    rdd_with_meta.collect.foreach{ tile =>
+      println(tile._1)
+    }
+
+
     //Stitches the raster together
     //    val raster_tile: MultibandTile = rdd_with_meta.stitch()
     //    GeoTiff(raster_tile, raster_merged_extents, tile_crs).write(output_gtif_path)
@@ -473,7 +486,6 @@ object Refactored {
     val attribute_table = features(0).data
     println("sizeEstimate - features: "+SizeEstimator.estimate(features).toString)
     println("Query Extents: "+features(0).envelope)
-
 
 
     //    val raster_tile: MultibandTile = rdd_with_meta.stitch().mask(region) // Correct so far
@@ -487,11 +499,6 @@ object Refactored {
       println(tile._1)
     }
 
-    println("Filtered ")
-    println(filtered_rdd.count())
-    filtered_rdd.collect.foreach{ tile =>
-      println(tile._1)
-    }
 
     val raster_tile: Raster[MultibandTile] = filtered_rdd.mask(region).stitch // Correct so far
 
