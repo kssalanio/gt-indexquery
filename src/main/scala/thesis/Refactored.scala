@@ -407,7 +407,9 @@ object Refactored {
         //          + " | " + mband_gtif.extent)
 
         val decoded_spatial_key = invertHexIndex(hex_index,x_resolution,y_resolution, sfc_index_label)
-        println("Decoded SFC Key: "+decoded_spatial_key+" => "+filename)
+        println("Decoded SFC Key: "+decoded_spatial_key
+          +" ("+decoded_spatial_key.col +" , "+decoded_spatial_key.row + ")"
+          +" => "+filename)
         val mband_tile = mband_gtif.raster.tile
 
         // Commented out because it results to empty values
