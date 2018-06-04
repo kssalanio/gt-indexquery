@@ -404,7 +404,7 @@ object Refactored {
     val mtl_seq : Seq[(SpatialKey,MultibandTile)] = gtif_list.map {
       list_item =>
         val filename : String  = list_item._1
-        val hex_hilbert = filename.split("_")(0)
+        val hex_hilbert = filename.split("_")(1)
         val mband_gtif: MultibandGeoTiff = list_item._2
 
         //        pprint.pprintln(filename + " | "
@@ -412,6 +412,7 @@ object Refactored {
         //          + " | " + mband_gtif.extent)
 
         val decoded_spatial_key = invertHexIndex(hex_hilbert,x_resolution,y_resolution, sfc_index_label)
+        println("Decoded SFC Key: "+decoded_spatial_key)
         val mband_tile = mband_gtif.raster.tile
 
         // Commented out because it results to empty values
