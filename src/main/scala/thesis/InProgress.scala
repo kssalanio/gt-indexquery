@@ -256,7 +256,7 @@ object InProgress {
 
     sfc_index_label match {
       case Constants.SFC_LABEL_ZORDER => {
-        return SpatialKey(Z2.combine(long_index)+1, (Z2.combine(long_index>>1))+1)
+        return SpatialKey(Z2.combine(long_index), (Z2.combine(long_index>>1)))
       }
       case Constants.SFC_LABEL_HILBERT => {
         val chc = {
